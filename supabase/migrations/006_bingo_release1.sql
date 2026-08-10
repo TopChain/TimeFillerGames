@@ -37,7 +37,7 @@ using (
   exists (
     select 1 from public.participants p
     where p.id = bingo_cards.participant_id
-      and p.auth_user_id = (select auth.uid())
+      and p.auth_user_id = auth.uid()
       and p.left_at is null
   )
 );
@@ -45,5 +45,9 @@ using (
 create policy "room members read bingo winners"
 on public.bingo_winners for select to authenticated
 using (
-  public.is_room_member_by_session(game_session_id, (select auth.uid()))
+  exists (
+    select 1 from public.game_sessions gs
+    where gs.id = bingo_winners.game_session_id
+      and public.is_room_member(gs.room_id)
+  )
 );
