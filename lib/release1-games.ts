@@ -9,9 +9,15 @@ export function shuffle<T>(items: readonly T[], rng: Rng = Math.random): T[] {
   return out;
 }
 
-export function generateBingoCandidates(size: number, count = 3, rng: Rng = Math.random) {
+export function buildBingoNumberPool(size: number, multiplier = 3) {
   if (!Number.isInteger(size) || size < 2 || size > 10) throw new Error('Unsupported Bingo board size');
-  const pool = Array.from({ length: size * size * 3 }, (_, i) => i + 1);
+  if (!Number.isInteger(multiplier) || multiplier < 2 || multiplier > 8) throw new Error('Unsupported Bingo pool multiplier');
+  return Array.from({ length: size * size * multiplier }, (_, i) => i + 1);
+}
+
+export function generateBingoCandidates(size: number, count = 3, rng: Rng = Math.random, poolMultiplier = 3) {
+  if (!Number.isInteger(count) || count < 1 || count > 10) throw new Error('Unsupported Bingo candidate count');
+  const pool = buildBingoNumberPool(size, poolMultiplier);
   return Array.from({ length: count }, () => shuffle(pool, rng).slice(0, size * size));
 }
 
