@@ -121,7 +121,7 @@ The approved six branded color themes are **not** invented in code because their
 
 ## What still blocks a public production launch
 
-The repository is a strong release candidate, but public launch still requires external production inputs and validation that cannot be self-approved:
+The repository is a strong **draft release candidate**, not a production-ready release. Public launch still requires external production inputs and validation that cannot be self-approved:
 
 1. Production/staging Supabase project, secrets, migrations and end-to-end multi-browser validation.
 2. Final domain and hosting / preview-deployment target.
