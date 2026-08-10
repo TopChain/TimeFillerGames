@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { rateLimitBucket } from '../lib/rate-limit-rules';
 import { AVATARS, disambiguateNickname, evaluateReadiness, generateNickname, nicknameIssue, normalizeRoomCode } from '../lib/room-flow';
 
 describe('room joining', () => {
@@ -59,5 +60,19 @@ describe('classroom-safe nickname structure', () => {
     expect(nicknameIssue('A', true)).not.toBeNull();
     expect(nicknameIssue('A'.repeat(25), true)).not.toBeNull();
     expect(nicknameIssue('Cosmic Aries', true)).toBeNull();
+  });
+});
+
+describe('server rate-limit bucket keys', () => {
+  it('is deterministic and resource-scoped', () => {
+    expect(rateLimitBucket('room-join', 'user-123', 'TFG4821')).toBe(rateLimitBucket('room-join', 'user-123', 'TFG4821'));
+    expect(rateLimitBucket('room-join', 'user-123', 'TFG4821')).not.toBe(rateLimitBucket('room-join', 'user-123', 'TFG9999'));
+  });
+
+  it('does not store raw user or room identifiers in the bucket key', () => {
+    const bucket = rateLimitBucket('room-join', 'user-123@example.com', 'TFG4821');
+    expect(bucket.startsWith('room-join:')).toBe(true);
+    expect(bucket).not.toContain('user-123@example.com');
+    expect(bucket).not.toContain('TFG4821');
   });
 });
