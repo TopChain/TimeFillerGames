@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { bingoWinnersOnDraw, isAcceptedQuickDrawGuess, majorityResult, quickDrawArtistPoints, quickDrawGuesserPoints } from '../lib/release1-games';
+import { bingoWinnersOnDraw, buildBingoNumberPool, generateBingoCandidates, isAcceptedQuickDrawGuess, majorityResult, quickDrawArtistPoints, quickDrawGuesserPoints } from '../lib/release1-games';
 
 describe('Bingo',()=>{
+  it('builds the current test-driven pool from board size and multiplier',()=>{
+    expect(buildBingoNumberPool(5,3)).toHaveLength(75);
+    expect(buildBingoNumberPool(6,2)).toHaveLength(72);
+  });
+
+  it('generates the planned default of three personal candidate cards',()=>{
+    const cards=generateBingoCandidates(5,3,()=>0.25);
+    expect(cards).toHaveLength(3);
+    expect(cards.every((card)=>card.length===25)).toBe(true);
+    expect(cards.every((card)=>new Set(card).size===25)).toBe(true);
+  });
+
   it('awards simultaneous winners from the same server draw',()=>{
     const cards={a:[1,2,3,4],b:[1,2,3,4],c:[5,6,7,8]};
     expect(bingoWinnersOnDraw(cards,[1],2,2)).toEqual(['a','b']);
