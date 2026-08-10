@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getRoomSnapshot, parseHostRoomUpdate, updateRoomByHost } from '@/lib/room-service';
+import { parseHostRoomUpdate, updateRoomByHost } from '@/lib/room-service';
+import { loadRoomSnapshot } from '@/lib/room-snapshot-service';
 import { requireHostUser, requireUser } from '@/lib/supabase/auth';
 
 export async function GET(request: Request, context: { params: Promise<{ code: string }> }) {
@@ -7,7 +8,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const user = await requireUser(request);
     if (!user) return NextResponse.json({ error: 'Authentication is required to view room state.' }, { status: 401 });
     const { code } = await context.params;
-    const snapshot = await getRoomSnapshot(code, user.id);
+    const snapshot = await loadRoomSnapshot(code, user.id);
     return NextResponse.json(snapshot, { headers: { 'cache-control': 'no-store' } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not load room.' }, { status: 403 });
