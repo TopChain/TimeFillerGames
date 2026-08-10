@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { parseHostRoomUpdate, updateRoomByHost } from '@/lib/room-service';
+import { pauseRoomByHost, resumeRoomIfPaused } from '@/lib/room-pause-service';
 import { loadRoomSnapshot } from '@/lib/room-snapshot-service';
 import { requireHostUser, requireUser } from '@/lib/supabase/auth';
 
@@ -21,6 +22,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     if (!host) return NextResponse.json({ error: 'A signed-in Host is required to update the room.' }, { status: 401 });
     const { code } = await context.params;
     const update = parseHostRoomUpdate(await request.json());
+    const updateKeys = Object.keys(update);
+
+    if (update.status === 'paused') {
+      if (updateKeys.length !== 1) throw new Error('Pause the room separately from other room-setting changes.');
+      const room = await pauseRoomByHost(code, host.id);
+      return NextResponse.json({ room });
+    }
+
+    if (update.status === 'playing') {
+      if (updateKeys.length !== 1) throw new Error('Resume the room separately from other room-setting changes.');
+      const resumed = await resumeRoomIfPaused(code, host.id);
+      if (resumed) return NextResponse.json({ room: resumed });
+    }
+
     const room = await updateRoomByHost(code, host.id, update);
     return NextResponse.json({ room });
   } catch (error) {
