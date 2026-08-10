@@ -23,6 +23,10 @@ describe('avatar identity', () => {
   it('disambiguates duplicate room names', () => {
     expect(disambiguateNickname('Brave Tiger', ['Brave Tiger', 'Brave Tiger 2'])).toBe('Brave Tiger 3');
   });
+
+  it('disambiguates duplicate names case-insensitively for Host overrides', () => {
+    expect(disambiguateNickname('Happy Panda', ['happy panda', 'HAPPY PANDA 2'])).toBe('Happy Panda 3');
+  });
 });
 
 describe('host lobby readiness', () => {
@@ -47,6 +51,13 @@ describe('classroom-safe nickname structure', () => {
   it('blocks links and contact information without pretending to be a full profanity service', () => {
     expect(nicknameIssue('www.example.com', true)).not.toBeNull();
     expect(nicknameIssue('me@example.com', true)).not.toBeNull();
+    expect(nicknameIssue('+1 (909) 555-1234', true)).not.toBeNull();
     expect(nicknameIssue('Happy Panda', true)).toBeNull();
+  });
+
+  it('still enforces the nickname length boundary for Host overrides', () => {
+    expect(nicknameIssue('A', true)).not.toBeNull();
+    expect(nicknameIssue('A'.repeat(25), true)).not.toBeNull();
+    expect(nicknameIssue('Cosmic Aries', true)).toBeNull();
   });
 });
