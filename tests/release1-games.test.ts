@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { majorityLateJoinDisposition } from '../lib/majority-late-join-rules';
 import { pauseDurationMs, remainingSecondsAt, shiftIsoDeadline } from '../lib/pause-rules';
 import { bingoWinnersOnDraw, buildBingoNumberPool, generateBingoCandidates, generatePeopleBingoCandidates, isAcceptedQuickDrawGuess, majorityResult, quickDrawArtistPoints, quickDrawGuesserPoints } from '../lib/release1-games';
 
@@ -45,6 +46,22 @@ describe('Majority Match',()=>{
     const result=majorityResult({a:'red',b:'blue',c:'red',d:'blue'});
     expect(result.majorityChoices.sort()).toEqual(['blue','red']);
     expect(Object.values(result.points)).toEqual([1,1,1,1]);
+  });
+
+  it('queues a late joiner during an active question',()=>{
+    expect(majorityLateJoinDisposition({phase:'answering',roundIndex:1,questionCount:4,availableSeats:5})).toBe('queue');
+  });
+
+  it('promotes a waiting player only during a reveal with another question ahead',()=>{
+    expect(majorityLateJoinDisposition({phase:'revealing',roundIndex:1,questionCount:4,availableSeats:1})).toBe('promote');
+  });
+
+  it('keeps a last-question late joiner queued for the next game',()=>{
+    expect(majorityLateJoinDisposition({phase:'revealing',roundIndex:3,questionCount:4,availableSeats:5})).toBe('queue');
+  });
+
+  it('does not promote past the Host participant cap',()=>{
+    expect(majorityLateJoinDisposition({phase:'revealing',roundIndex:1,questionCount:4,availableSeats:0})).toBe('queue');
   });
 });
 
