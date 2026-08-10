@@ -14,7 +14,7 @@ export type MajoritySnapshot = {
   room: { joinCode: string; status: string; rankingVisibility: string };
   session: {
     id: string;
-    status: 'active' | 'ended';
+    status: 'active' | 'paused' | 'ended';
     config: {
       category: MajorityCategory;
       questionCount: number;
@@ -29,6 +29,7 @@ export type MajoritySnapshot = {
       questionIds: string[];
       currentQuestion: { id: string; category: MajorityCategory; prompt: string; choices: string[] };
       deadline: string;
+      pauseStartedAt?: string | null;
       reveal: null | {
         counts: Record<string, number>;
         majorityChoices: string[];
