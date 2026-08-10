@@ -123,3 +123,11 @@ export async function setReadyState(accessToken: string, roomCode: string, sessi
 export async function leaveLiveRoom(accessToken: string, roomCode: string, sessionToken: string) {
   return requestJson<{ ok: true }>(`/api/rooms/${encodeURIComponent(roomCode)}/leave`, { method: 'POST', body: JSON.stringify({ sessionToken }) }, accessToken);
 }
+
+export async function setParticipantRole(accessToken: string, roomCode: string, participantId: string, role: 'participant' | 'spectator') {
+  return requestJson<{ participant: PublicParticipant }>(`/api/rooms/${encodeURIComponent(roomCode)}/participants/${encodeURIComponent(participantId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }, accessToken);
+}
+
+export async function removeParticipant(accessToken: string, roomCode: string, participantId: string) {
+  return requestJson<{ ok: true; participantId: string; nickname: string }>(`/api/rooms/${encodeURIComponent(roomCode)}/participants/${encodeURIComponent(participantId)}`, { method: 'DELETE' }, accessToken);
+}
