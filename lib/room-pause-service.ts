@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { normalizeRoomCode } from './room-flow';
+import { pauseDurationMs, shiftIsoDeadline } from './pause-rules';
 import { createAdminClient } from './supabase/admin';
 
 const ROOM_SELECT = 'id,join_code,host_user_id,status,room_language,context,host_cap,game_type,duration_minutes,locked,allow_custom_photos,allow_late_join,ranking_visibility,room_theme,expires_at';
@@ -12,13 +13,6 @@ type PausableState = Record<string, unknown> & {
   pauseStartedAt?: string | null;
   roundIndex?: number;
 };
-
-function shiftedIso(value: unknown, deltaMs: number) {
-  if (typeof value !== 'string') return value;
-  const time = new Date(value).getTime();
-  if (!Number.isFinite(time)) return value;
-  return new Date(time + deltaMs).toISOString();
-}
 
 async function hostRoom(roomCodeValue: string, hostUserId: string) {
   const admin = createAdminClient();
@@ -82,16 +76,14 @@ export async function resumeRoomIfPaused(roomCodeValue: string, hostUserId: stri
 
   const session = await latestLiveSession(room.id);
   if (session && session.status === 'paused') {
-    const nowMs = Date.now();
-    const pauseStartedMs = session.state?.pauseStartedAt ? new Date(session.state.pauseStartedAt).getTime() : nowMs;
-    const deltaMs = Number.isFinite(pauseStartedMs) ? Math.max(0, nowMs - pauseStartedMs) : 0;
+    const deltaMs = pauseDurationMs(session.state?.pauseStartedAt, Date.now());
     const state: PausableState = { ...(session.state ?? {}), pauseStartedAt: null };
 
     if (state.phase === 'card-selection' && typeof state.selectionDeadline === 'string') {
-      state.selectionDeadline = shiftedIso(state.selectionDeadline, deltaMs) as string;
+      state.selectionDeadline = shiftIsoDeadline(state.selectionDeadline, deltaMs);
     }
     if ((state.phase === 'answering' || state.phase === 'drawing') && typeof state.deadline === 'string') {
-      state.deadline = shiftedIso(state.deadline, deltaMs) as string;
+      state.deadline = shiftIsoDeadline(state.deadline, deltaMs);
     }
 
     if (session.game_type === 'quick-draw' && state.phase === 'drawing' && Number.isInteger(state.roundIndex) && typeof state.deadline === 'string') {
