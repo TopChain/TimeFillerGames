@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { normalizeRoomCode } from './room-flow';
+import { disambiguateNickname, nicknameIssue, normalizeRoomCode } from './room-flow';
 import { createAdminClient } from './supabase/admin';
 
 type ModerationRole = 'participant' | 'spectator';
@@ -9,7 +9,7 @@ async function hostRoom(roomCodeValue: string, hostUserId: string) {
   const admin = createAdminClient();
   const roomCode = normalizeRoomCode(roomCodeValue);
   const { data: room, error } = await admin.from('rooms')
-    .select('id,join_code,host_user_id,status,host_cap')
+    .select('id,join_code,host_user_id,status,host_cap,context')
     .eq('join_code', roomCode)
     .neq('status', 'closed')
     .maybeSingle();
@@ -22,7 +22,7 @@ async function hostRoom(roomCodeValue: string, hostUserId: string) {
 async function activeTarget(roomId: string, participantId: string) {
   const admin = createAdminClient();
   const { data, error } = await admin.from('participants')
-    .select('id,nickname,role,online,left_at')
+    .select('id,nickname,role,online,left_at,nickname_locked')
     .eq('room_id', roomId)
     .eq('id', participantId)
     .is('left_at', null)
@@ -30,6 +30,24 @@ async function activeTarget(roomId: string, participantId: string) {
   if (error) throw new Error(error.message);
   if (!data) throw new Error('This participant is no longer in the room.');
   return data;
+}
+
+async function writeModerationEvent(input: {
+  roomId: string;
+  actorUserId: string;
+  participantId?: string | null;
+  action: 'role_changed' | 'participant_removed' | 'nickname_overridden' | 'nickname_unlocked';
+  details?: Record<string, unknown>;
+}) {
+  const admin = createAdminClient();
+  const { error } = await admin.from('moderation_events').insert({
+    room_id: input.roomId,
+    actor_user_id: input.actorUserId,
+    participant_id: input.participantId ?? null,
+    action: input.action,
+    details: input.details ?? {},
+  });
+  if (error) throw new Error(error.message);
 }
 
 export async function setModeratedParticipantRole(roomCodeValue: string, hostUserId: string, participantId: string, role: ModerationRole) {
@@ -58,6 +76,50 @@ export async function setModeratedParticipantRole(roomCodeValue: string, hostUse
     .select('id,nickname,avatar_category,avatar_key,ui_language,role,ready,online,last_seen_at,disconnected_at')
     .single();
   if (error) throw new Error(error.message);
+  await writeModerationEvent({ roomId: room.id, actorUserId: hostUserId, participantId: target.id, action: 'role_changed', details: { from: target.role, to: role } });
+  return data;
+}
+
+export async function renameModeratedParticipant(roomCodeValue: string, hostUserId: string, participantId: string, nicknameValue: unknown) {
+  const admin = createAdminClient();
+  const room = await hostRoom(roomCodeValue, hostUserId);
+  const target = await activeTarget(room.id, participantId);
+  const requested = String(nicknameValue ?? '').trim();
+  const issue = nicknameIssue(requested, room.context === 'Classroom');
+  if (issue) throw new Error(issue);
+
+  const { data: names, error: namesError } = await admin.from('participants')
+    .select('id,nickname')
+    .eq('room_id', room.id)
+    .is('left_at', null);
+  if (namesError) throw new Error(namesError.message);
+  const nickname = disambiguateNickname(requested, (names ?? []).filter((participant) => participant.id !== target.id).map((participant) => participant.nickname));
+
+  const { data, error } = await admin.from('participants')
+    .update({ nickname, nickname_locked: true, last_seen_at: new Date().toISOString() })
+    .eq('room_id', room.id)
+    .eq('id', target.id)
+    .is('left_at', null)
+    .select('id,nickname,avatar_category,avatar_key,ui_language,role,ready,online,last_seen_at,disconnected_at')
+    .single();
+  if (error) throw new Error(error.message);
+  await writeModerationEvent({ roomId: room.id, actorUserId: hostUserId, participantId: target.id, action: 'nickname_overridden', details: { from: target.nickname, to: nickname } });
+  return data;
+}
+
+export async function unlockModeratedNickname(roomCodeValue: string, hostUserId: string, participantId: string) {
+  const admin = createAdminClient();
+  const room = await hostRoom(roomCodeValue, hostUserId);
+  const target = await activeTarget(room.id, participantId);
+  const { data, error } = await admin.from('participants')
+    .update({ nickname_locked: false, last_seen_at: new Date().toISOString() })
+    .eq('room_id', room.id)
+    .eq('id', target.id)
+    .is('left_at', null)
+    .select('id,nickname,avatar_category,avatar_key,ui_language,role,ready,online,last_seen_at,disconnected_at')
+    .single();
+  if (error) throw new Error(error.message);
+  await writeModerationEvent({ roomId: room.id, actorUserId: hostUserId, participantId: target.id, action: 'nickname_unlocked', details: { nickname: target.nickname } });
   return data;
 }
 
@@ -72,5 +134,19 @@ export async function removeModeratedParticipant(roomCodeValue: string, hostUser
     .eq('id', target.id)
     .is('left_at', null);
   if (error) throw new Error(error.message);
+  await writeModerationEvent({ roomId: room.id, actorUserId: hostUserId, participantId: target.id, action: 'participant_removed', details: { nickname: target.nickname, role: target.role } });
   return { ok: true as const, participantId: target.id, nickname: target.nickname };
+}
+
+export async function listModerationEvents(roomCodeValue: string, hostUserId: string, limit = 30) {
+  const admin = createAdminClient();
+  const room = await hostRoom(roomCodeValue, hostUserId);
+  const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
+  const { data, error } = await admin.from('moderation_events')
+    .select('id,participant_id,action,details,created_at')
+    .eq('room_id', room.id)
+    .order('created_at', { ascending: false })
+    .limit(safeLimit);
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
