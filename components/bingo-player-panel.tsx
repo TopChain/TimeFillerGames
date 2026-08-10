@@ -1,12 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BINGO_UI_COPY } from '@/lib/bingo-ui-copy';
 import { fetchBingo, selectBingoCard, type BingoSnapshot } from '@/lib/client-bingo';
 import { fetchLatestBingoMode } from '@/lib/client-people-bingo';
+import { usePlayerUiLocale } from '@/lib/use-player-ui-locale';
 import { BingoBoard } from './bingo-board';
 import { PeopleBingoPlayerPanel } from './people-bingo-player-panel';
 
 export function BingoPlayerPanel({ accessToken, roomCode, participantId }: { accessToken: string; roomCode: string; participantId: string }) {
+  const locale = usePlayerUiLocale(accessToken, roomCode);
+  const copy = BINGO_UI_COPY[locale];
   const [mode, setMode] = useState<'standard-number' | 'people' | null>(null);
   const [modeError, setModeError] = useState<string | null>(null);
 
@@ -20,10 +24,12 @@ export function BingoPlayerPanel({ accessToken, roomCode, participantId }: { acc
 
   if (mode === 'people') return <PeopleBingoPlayerPanel accessToken={accessToken} roomCode={roomCode} participantId={participantId} />;
   if (mode === 'standard-number') return <StandardBingoPlayerPanel accessToken={accessToken} roomCode={roomCode} participantId={participantId} />;
-  return <section className="panel bingo-live-panel"><div className="eyebrow">Bingo</div><h2>Loading Bingo mode…</h2>{modeError && <div className="notice warning" role="alert">{modeError}</div>}</section>;
+  return <section className="panel bingo-live-panel"><div className="eyebrow">Bingo</div><h2>{copy.loadingMode}</h2>{modeError && <div className="notice warning" role="alert">{modeError}</div>}</section>;
 }
 
 function StandardBingoPlayerPanel({ accessToken, roomCode, participantId }: { accessToken: string; roomCode: string; participantId: string }) {
+  const locale = usePlayerUiLocale(accessToken, roomCode);
+  const copy = BINGO_UI_COPY[locale];
   const [snapshot, setSnapshot] = useState<BingoSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,34 +74,32 @@ function StandardBingoPlayerPanel({ accessToken, roomCode, participantId }: { ac
     }
   }
 
-  if (!snapshot) {
-    return <section className="panel bingo-live-panel"><div className="eyebrow">Standard Bingo</div><h2>Waiting for the Host to start the round.</h2>{error && <div className="notice warning" role="alert">{error}</div>}</section>;
-  }
+  if (!snapshot) return <section className="panel bingo-live-panel"><div className="eyebrow">{copy.standardTitle}</div><h2>{copy.waitingStart}</h2>{error && <div className="notice warning" role="alert">{error}</div>}</section>;
 
   const { session, ownCard } = snapshot;
   const paused = snapshot.room.status === 'paused' || session.status === 'paused';
-  if (!ownCard) return <section className="panel bingo-live-panel"><div className="eyebrow">Standard Bingo</div><h2>Spectator view</h2>{paused && <div className="notice warning">The Host paused the game.</div>}<p className="support">This seat does not have an active Bingo card in the current round.</p></section>;
+  if (!ownCard) return <section className="panel bingo-live-panel"><div className="eyebrow">{copy.standardTitle}</div><h2>{copy.spectatorView}</h2>{paused && <div className="notice warning">{copy.paused}</div>}<p className="support">{copy.noActiveCard}</p></section>;
 
   if (session.state.phase === 'card-selection' && !ownCard.selected_card) {
     const expired = remaining <= 0;
     return <section className="panel bingo-live-panel player-bingo">
-      <div className="eyebrow">Choose your card</div><h2>{paused ? `Paused · ${remaining}s saved` : expired ? 'Selection closed' : `${remaining}s remaining`}</h2>
-      {paused && <div className="notice warning">The Host paused the room. Card selection is frozen and will resume with the same remaining time.</div>}
-      <p className="support">{expired ? 'The timer expired. Waiting for the server to lock an automatic card assignment.' : 'Choose one of your three personal candidate cards. If time expires, the server assigns one automatically.'}</p>
+      <div className="eyebrow">{copy.chooseCard}</div><h2>{paused ? `${copy.paused} · ${remaining}s ${copy.pausedSaved}` : expired ? copy.selectionClosed : `${remaining}s ${copy.remaining}`}</h2>
+      {paused && <div className="notice warning">{copy.pauseSelection}</div>}
+      <p className="support">{expired ? copy.serverAssigning : copy.standardChoiceHelp}</p>
       {error && <div className="notice warning" role="alert">{error}</div>}
-      <div className="candidate-grid">{ownCard.candidate_cards.map((card, index) => <button className="candidate-card" disabled={busy || expired || paused} onClick={() => void choose(index)} key={index}><span className="pill">Card {index + 1}</span><BingoBoard numbers={card} size={session.config.boardSize} compact /><strong>{paused ? 'Paused' : expired ? 'Waiting…' : `Select card ${index + 1}`}</strong></button>)}</div>
+      <div className="candidate-grid">{ownCard.candidate_cards.map((card, index) => <button className="candidate-card" disabled={busy || expired || paused} onClick={() => void choose(index)} key={index}><span className="pill">{copy.card} {index + 1}</span><BingoBoard numbers={card} size={session.config.boardSize} compact /><strong>{paused ? copy.paused : expired ? copy.waiting : `${copy.select} ${copy.card.toLocaleLowerCase(locale)} ${index + 1}`}</strong></button>)}</div>
     </section>;
   }
 
   const card = ownCard.selected_card ?? ownCard.candidate_cards[ownCard.selected_candidate ?? 0];
   const ownWinner = session.winners.find((winner) => winner.participant_id === participantId);
   return <section className="panel bingo-live-panel player-bingo">
-    <div className="live-line"><span className="live-dot" /> {paused ? 'PAUSED · STANDARD BINGO' : session.state.phase === 'ended' ? 'ROUND ENDED' : 'LIVE STANDARD BINGO'}</div>
-    {paused && <div className="notice warning">The Host paused the game. Your board stays locked and no new number can be drawn until resume.</div>}
-    <div className="bingo-callout draw"><span>Latest draw</span><strong>{session.state.latestDraw ?? '—'}</strong></div>
+    <div className="live-line"><span className="live-dot" /> {paused ? `${copy.paused} · ${copy.standardTitle}` : session.state.phase === 'ended' ? copy.roundEnded : copy.liveStandard}</div>
+    {paused && <div className="notice warning">{copy.pauseBoardStandard}</div>}
+    <div className="bingo-callout draw"><span>{copy.latestDraw}</span><strong>{session.state.latestDraw ?? '—'}</strong></div>
     <BingoBoard numbers={card} size={session.config.boardSize} drawn={session.state.drawn} />
-    <div className="meta"><span className="pill">Draws {session.state.drawn.length}</span><span className="pill">Automatically marked</span><span className="pill">One line wins</span></div>
-    {ownWinner && <div className="notice success">You earned shared placement #{ownWinner.placement} on draw {ownWinner.completing_draw_index + 1}.</div>}
-    {session.winners.length > 0 && <div className="winner-list">{session.winners.slice(0, 3).map((winner) => <div className="control-row" key={winner.participant_id}><span>#{winner.placement} {winner.nickname}</span><strong>Winner</strong></div>)}</div>}
+    <div className="meta"><span className="pill">{copy.draws} {session.state.drawn.length}</span><span className="pill">{copy.autoMarking}</span><span className="pill">{copy.oneLineWins}</span></div>
+    {ownWinner && <div className="notice success">{copy.sharedPlacement} #{ownWinner.placement} {copy.onDraw} {ownWinner.completing_draw_index + 1}.</div>}
+    {session.winners.length > 0 && <div className="winner-list">{session.winners.slice(0, 3).map((winner) => <div className="control-row" key={winner.participant_id}><span>#{winner.placement} {winner.nickname}</span><strong>{copy.winner}</strong></div>)}</div>}
   </section>;
 }
