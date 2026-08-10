@@ -36,6 +36,14 @@ export type ParticipantSession = {
 
 export type PublicParticipant = Omit<ParticipantSession, 'session_token'> & { left_at?: string | null };
 
+export type ModerationEvent = {
+  id: string;
+  participant_id: string | null;
+  action: 'role_changed' | 'participant_removed' | 'nickname_overridden' | 'nickname_unlocked';
+  details: Record<string, unknown>;
+  created_at: string;
+};
+
 export type RoomSnapshot = {
   room: LiveRoom;
   viewer: { isHost: boolean };
@@ -128,6 +136,18 @@ export async function setParticipantRole(accessToken: string, roomCode: string, 
   return requestJson<{ participant: PublicParticipant }>(`/api/rooms/${encodeURIComponent(roomCode)}/participants/${encodeURIComponent(participantId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }, accessToken);
 }
 
+export async function renameParticipant(accessToken: string, roomCode: string, participantId: string, nickname: string) {
+  return requestJson<{ participant: PublicParticipant }>(`/api/rooms/${encodeURIComponent(roomCode)}/participants/${encodeURIComponent(participantId)}`, { method: 'PATCH', body: JSON.stringify({ nickname }) }, accessToken);
+}
+
+export async function unlockParticipantNickname(accessToken: string, roomCode: string, participantId: string) {
+  return requestJson<{ participant: PublicParticipant }>(`/api/rooms/${encodeURIComponent(roomCode)}/participants/${encodeURIComponent(participantId)}`, { method: 'PATCH', body: JSON.stringify({ unlockNickname: true }) }, accessToken);
+}
+
 export async function removeParticipant(accessToken: string, roomCode: string, participantId: string) {
   return requestJson<{ ok: true; participantId: string; nickname: string }>(`/api/rooms/${encodeURIComponent(roomCode)}/participants/${encodeURIComponent(participantId)}`, { method: 'DELETE' }, accessToken);
+}
+
+export async function fetchModerationEvents(accessToken: string, roomCode: string) {
+  return requestJson<{ events: ModerationEvent[] }>(`/api/rooms/${encodeURIComponent(roomCode)}/moderation`, { method: 'GET' }, accessToken);
 }
