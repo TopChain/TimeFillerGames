@@ -11,7 +11,7 @@ export function usePlayerUiLocale(accessToken: string, roomCode: string, fallbac
     let cancelled = false;
     void fetchRoomSnapshot(accessToken, roomCode)
       .then((snapshot) => {
-        if (cancelled) return;
+        if (cancelled || snapshot.viewer.isHost) return;
         const own = snapshot.participants[0];
         if (own?.ui_language) setLocale(own.ui_language);
       })
