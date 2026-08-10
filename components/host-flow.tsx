@@ -6,18 +6,25 @@ import { GROUP_CONTEXTS, evaluateReadiness, gamesForTime, getGame, type GroupCon
 import { createLiveRoom, fetchRoomSnapshot, updateLiveRoom, type LiveRoom, type RoomSnapshot } from '@/lib/client-room';
 import { startBingo } from '@/lib/client-bingo';
 import { startMajorityMatchClient } from '@/lib/client-majority-match';
+import { startQuickDrawClient } from '@/lib/client-quick-draw';
 import type { MajorityCategory } from '@/lib/majority-match-content';
+import type { QuickDrawCategory, QuickDrawDifficulty } from '@/lib/quick-draw-content';
 import { hasBrowserSupabaseConfig, permanentHostSession, requestHostMagicLink } from '@/lib/supabase/browser';
 import { subscribeToRoom } from '@/lib/realtime-client';
 import { BingoHostPanel } from '@/components/bingo-host-panel';
 import { BingoResultsPanel } from '@/components/bingo-results-panel';
 import { MajorityMatchHostPanel } from '@/components/majority-match-host-panel';
 import { MajorityMatchResultsPanel } from '@/components/majority-match-results-panel';
+import { QuickDrawHostPanel } from '@/components/quick-draw-host-panel';
+import { QuickDrawResultsPanel } from '@/components/quick-draw-results-panel';
 
 const STEPS = ['Choose time', 'Choose game', 'Configure', 'Open room', 'Run game', 'Results'] as const;
 const BINGO_CARD_TIMERS = [10, 15, 20, 30, 60] as const;
 const MAJORITY_CATEGORIES: MajorityCategory[] = ['Classroom', 'Friends', 'Family', 'Workplace', 'General'];
 const MAJORITY_COUNT_FOR_TIME: Record<TimePreset, number> = { 3: 3, 5: 4, 8: 5, 10: 6 };
+const QUICK_DRAW_CATEGORIES: QuickDrawCategory[] = ['Everyday', 'Animals', 'Food', 'Places'];
+const QUICK_DRAW_DIFFICULTIES: QuickDrawDifficulty[] = ['easy', 'medium', 'hard'];
+const QUICK_DRAW_TURNS_FOR_TIME: Record<TimePreset, number> = { 3: 2, 5: 3, 8: 4, 10: 5 };
 
 export function HostFlow({ onExit }: { onExit: () => void }) {
   const [step, setStep] = useState(0);
@@ -29,14 +36,25 @@ export function HostFlow({ onExit }: { onExit: () => void }) {
   const [allowCustomPhotos, setAllowCustomPhotos] = useState(false);
   const [allowLateJoin, setAllowLateJoin] = useState(true);
   const [rankingVisibility, setRankingVisibility] = useState<RankingVisibility>('podium');
+
   const [bingoSize, setBingoSize] = useState(6);
   const [bingoCardChoiceSeconds, setBingoCardChoiceSeconds] = useState(20);
+
   const [majorityCategory, setMajorityCategory] = useState<MajorityCategory>('Classroom');
   const [majorityQuestionCount, setMajorityQuestionCount] = useState(4);
   const [majorityAnonymousResults, setMajorityAnonymousResults] = useState(true);
   const [majorityShowPercentages, setMajorityShowPercentages] = useState(true);
   const [answerTimer, setAnswerTimer] = useState(20);
+
   const [drawTimer, setDrawTimer] = useState(45);
+  const [quickDrawArtistTurns, setQuickDrawArtistTurns] = useState(3);
+  const [quickDrawArtistSelection, setQuickDrawArtistSelection] = useState<'random' | 'join-order'>('random');
+  const [quickDrawCategory, setQuickDrawCategory] = useState<QuickDrawCategory>('Everyday');
+  const [quickDrawDifficulty, setQuickDrawDifficulty] = useState<QuickDrawDifficulty>('easy');
+  const [quickDrawGuessVisibility, setQuickDrawGuessVisibility] = useState<'hidden-until-correct' | 'moderated-stream'>('hidden-until-correct');
+  const [quickDrawAudienceGuessing, setQuickDrawAudienceGuessing] = useState(true);
+  const [quickDrawTimeBonus, setQuickDrawTimeBonus] = useState(true);
+
   const [hostEmail, setHostEmail] = useState('');
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hostUserId, setHostUserId] = useState<string | null>(null);
@@ -49,7 +67,13 @@ export function HostFlow({ onExit }: { onExit: () => void }) {
 
   const compatible = useMemo(() => gamesForTime(minutes), [minutes]);
   const game = getGame(gameId);
-  const setupComplete = gameId === 'bingo' ? bingoSize > 0 : gameId === 'majority-match' ? answerTimer > 0 && majorityQuestionCount > 0 : drawTimer > 0;
+  const setupComplete = gameId === 'bingo'
+    ? bingoSize > 0
+    : gameId === 'majority-match'
+      ? answerTimer > 0 && majorityQuestionCount > 0
+      : gameId === 'quick-draw'
+        ? drawTimer > 0 && quickDrawArtistTurns > 0
+        : true;
   const activePlayers = snapshot?.counts.active ?? 0;
   const reconnectingPlayers = snapshot?.counts.reconnecting ?? 0;
   const readiness = evaluateReadiness({ gameId, activePlayers, hostCap, setupComplete, reconnectingPlayers });
@@ -113,6 +137,7 @@ export function HostFlow({ onExit }: { onExit: () => void }) {
   function chooseTime(value: TimePreset) {
     setMinutes(value);
     setMajorityQuestionCount(MAJORITY_COUNT_FOR_TIME[value]);
+    setQuickDrawArtistTurns(QUICK_DRAW_TURNS_FOR_TIME[value]);
     const stillFits = GAMES.find((candidate) => candidate.id === gameId)?.times.includes(value);
     if (!stillFits) setGameId(gamesForTime(value)[0].id as GameId);
   }
@@ -186,6 +211,18 @@ export function HostFlow({ onExit }: { onExit: () => void }) {
           anonymousResults: majorityAnonymousResults,
           showPercentages: majorityShowPercentages,
         });
+      } else if (gameId === 'quick-draw') {
+        const safeTurns = Math.min(quickDrawArtistTurns, Math.max(1, activePlayers));
+        await startQuickDrawClient(accessToken, liveRoom.join_code, {
+          drawingSeconds: drawTimer,
+          artistTurns: safeTurns,
+          artistSelection: quickDrawArtistSelection,
+          wordCategory: quickDrawCategory,
+          wordDifficulty: quickDrawDifficulty,
+          guessVisibility: quickDrawGuessVisibility,
+          audienceGuessing: quickDrawAudienceGuessing,
+          timeBonus: quickDrawTimeBonus,
+        });
       } else {
         await patchRoom({ status: 'playing' });
       }
@@ -248,7 +285,17 @@ export function HostFlow({ onExit }: { onExit: () => void }) {
           <label className="toggle-row"><input type="checkbox" checked={majorityShowPercentages} onChange={(event) => setMajorityShowPercentages(event.target.checked)} /><span>Display percentages</span></label>
           <div className="notice">Speed bonus is always off. Tied top answers all receive full points.</div>
         </>}
-        {gameId === 'quick-draw' && <div className="field-block"><label>Drawing / guessing timer</label><input type="range" min="30" max="90" step="15" value={drawTimer} onChange={(event) => setDrawTimer(Number(event.target.value))} /><strong>{drawTimer} seconds</strong></div>}
+        {gameId === 'quick-draw' && <>
+          <div className="field-block"><label>Drawing time per artist</label><input type="range" min="20" max="120" step="5" value={drawTimer} onChange={(event) => setDrawTimer(Number(event.target.value))} /><strong>{drawTimer} seconds</strong></div>
+          <div className="field-block"><label>Artist turns</label><div className="chip-row">{[1,2,3,4,5,6].map((turns) => <button key={turns} className={`select-chip ${quickDrawArtistTurns === turns ? 'selected' : ''}`} onClick={() => setQuickDrawArtistTurns(turns)}>{turns}</button>)}</div><small>Time-first recommendation is an engineering estimate. At launch, the server also caps turns to available active players.</small></div>
+          <div className="field-block"><label>Artist selection</label><div className="chip-row"><button className={`select-chip ${quickDrawArtistSelection === 'random' ? 'selected' : ''}`} onClick={() => setQuickDrawArtistSelection('random')}>Random</button><button className={`select-chip ${quickDrawArtistSelection === 'join-order' ? 'selected' : ''}`} onClick={() => setQuickDrawArtistSelection('join-order')}>Join order</button></div></div>
+          <div className="field-block"><label>Word category</label><div className="chip-row">{QUICK_DRAW_CATEGORIES.map((category) => <button key={category} className={`select-chip ${quickDrawCategory === category ? 'selected' : ''}`} onClick={() => setQuickDrawCategory(category)}>{category}</button>)}</div><small>Starter engineering content; final launch word bank requires content QA.</small></div>
+          <div className="field-block"><label>Word difficulty</label><div className="chip-row">{QUICK_DRAW_DIFFICULTIES.map((difficulty) => <button key={difficulty} className={`select-chip ${quickDrawDifficulty === difficulty ? 'selected' : ''}`} onClick={() => setQuickDrawDifficulty(difficulty)}>{difficulty}</button>)}</div></div>
+          <label className="form-label">Guess visibility<select value={quickDrawGuessVisibility} onChange={(event) => setQuickDrawGuessVisibility(event.target.value as 'hidden-until-correct' | 'moderated-stream')}><option value="hidden-until-correct">Hidden until correct</option><option value="moderated-stream">Host moderation queue</option></select></label>
+          <label className="toggle-row"><input type="checkbox" checked={quickDrawAudienceGuessing} onChange={(event) => setQuickDrawAudienceGuessing(event.target.checked)} /><span>Allow spectators/audience to guess</span></label>
+          <label className="toggle-row"><input type="checkbox" checked={quickDrawTimeBonus} onChange={(event) => setQuickDrawTimeBonus(event.target.checked)} /><span>Optional decreasing time component for correct guessers</span></label>
+          <div className="notice">Fuzzy spelling tolerance remains intentionally conservative until usability/content testing establishes a fair threshold.</div>
+        </>}
         {game.release !== 'R1' && <div className="notice warning">This game is specified for Release 1.1. Release 1 publication remains focused on Bingo, Majority Match, and Quick Draw & Guess.</div>}
         <div className="field-block"><label>Production Host sign-in</label><p className="support">{authLabel}</p>{!accessToken && <><input type="email" autoComplete="email" placeholder="host@company.com" value={hostEmail} onChange={(event) => setHostEmail(event.target.value)} /><button className="btn secondary" disabled={busy || !hasBrowserSupabaseConfig()} onClick={() => void sendMagicLink()}>Send secure sign-in link</button></>}</div>
       </div>
@@ -266,8 +313,10 @@ export function HostFlow({ onExit }: { onExit: () => void }) {
 
     {step === 4 && liveRoom && accessToken && gameId === 'majority-match' && <section className="workspace two-column"><MajorityMatchHostPanel accessToken={accessToken} roomCode={liveRoom.join_code} onEnded={() => { setStep(5); void refreshSnapshot(); }} /><aside className="panel status-panel"><h2>Room controls</h2><div className="control-row"><span>Active players</span><strong>{activePlayers}</strong></div><div className="control-row"><span>Connection</span><strong>{realtimeStatus}</strong></div><button className="btn secondary full-width" disabled={busy} onClick={() => void patchRoom({ status: liveRoom.status === 'paused' ? 'playing' : 'paused' })}>{liveRoom.status === 'paused' ? 'Resume room' : 'Pause room'}</button><p className="support">Votes are private until reveal. There is no speed bonus; tied top choices all score full points.</p></aside></section>}
 
-    {step === 4 && liveRoom && gameId !== 'bingo' && gameId !== 'majority-match' && <section className="workspace two-column"><div className="panel play-stage"><div className="live-line"><span className="live-dot" /> LIVE · {game.name}</div><h1>{liveRoom.status === 'paused' ? 'Game paused' : 'Round in progress'}</h1><p className="support">The room infrastructure is live. This Release 1 game engine is the next implementation slice.</p><div className="demo-board"><span>{minutes}:00</span><strong>{activePlayers} players</strong></div></div><aside className="panel status-panel"><h2>Host controls</h2><button className="btn primary full-width" disabled={busy} onClick={() => void patchRoom({ status: liveRoom.status === 'paused' ? 'playing' : 'paused' })}>{liveRoom.status === 'paused' ? 'Resume' : 'Pause'}</button><button className="btn danger full-width" disabled={busy} onClick={() => void finishGame()}>End game</button></aside></section>}
+    {step === 4 && liveRoom && accessToken && gameId === 'quick-draw' && <section className="workspace two-column"><QuickDrawHostPanel accessToken={accessToken} roomCode={liveRoom.join_code} onEnded={() => { setStep(5); void refreshSnapshot(); }} /><aside className="panel status-panel"><h2>Room controls</h2><div className="control-row"><span>Active players</span><strong>{activePlayers}</strong></div><div className="control-row"><span>Connection</span><strong>{realtimeStatus}</strong></div><div className="control-row"><span>Audience guessing</span><strong>{quickDrawAudienceGuessing ? 'On' : 'Off'}</strong></div><p className="support">The artist rotation is fixed at game start. Late joiners may guess when allowed but do not enter the current artist sequence.</p><div className="notice warning">Server-authoritative pause/resume for active drawing deadlines is still a beta gate; this panel does not fake a pause that would leave the timer running.</div></aside></section>}
 
-    {step === 5 && liveRoom && <section className="workspace narrow results-stage"><div className="eyebrow">Results</div><h1>Round complete</h1>{gameId === 'bingo' && accessToken ? <BingoResultsPanel accessToken={accessToken} roomCode={liveRoom.join_code} /> : gameId === 'majority-match' && accessToken ? <MajorityMatchResultsPanel accessToken={accessToken} roomCode={liveRoom.join_code} /> : <div className="notice">Server-backed results for this game arrive with its Release 1 engine.</div>}<p className="support">Ranking visibility for this room: <strong>{rankingVisibility}</strong>.</p><div className="primary-row"><button className="btn primary" disabled={busy} onClick={() => void replay()}>Replay</button><button className="btn secondary" disabled={busy} onClick={() => void changeGame()}>Change game · keep room</button><button className="btn danger" disabled={busy} onClick={() => void endRoom()}>End room</button></div></section>}
+    {step === 4 && liveRoom && gameId !== 'bingo' && gameId !== 'majority-match' && gameId !== 'quick-draw' && <section className="workspace two-column"><div className="panel play-stage"><div className="live-line"><span className="live-dot" /> LIVE · {game.name}</div><h1>{liveRoom.status === 'paused' ? 'Game paused' : 'Round in progress'}</h1><p className="support">The room infrastructure is live. This game is scheduled for Release 1.1.</p><div className="demo-board"><span>{minutes}:00</span><strong>{activePlayers} players</strong></div></div><aside className="panel status-panel"><h2>Host controls</h2><button className="btn primary full-width" disabled={busy} onClick={() => void patchRoom({ status: liveRoom.status === 'paused' ? 'playing' : 'paused' })}>{liveRoom.status === 'paused' ? 'Resume' : 'Pause'}</button><button className="btn danger full-width" disabled={busy} onClick={() => void finishGame()}>End game</button></aside></section>}
+
+    {step === 5 && liveRoom && <section className="workspace narrow results-stage"><div className="eyebrow">Results</div><h1>Round complete</h1>{gameId === 'bingo' && accessToken ? <BingoResultsPanel accessToken={accessToken} roomCode={liveRoom.join_code} /> : gameId === 'majority-match' && accessToken ? <MajorityMatchResultsPanel accessToken={accessToken} roomCode={liveRoom.join_code} /> : gameId === 'quick-draw' && accessToken ? <QuickDrawResultsPanel accessToken={accessToken} roomCode={liveRoom.join_code} /> : <div className="notice">Server-backed results for this game arrive with its engine.</div>}<p className="support">Ranking visibility for this room: <strong>{rankingVisibility}</strong>.</p><div className="primary-row"><button className="btn primary" disabled={busy} onClick={() => void replay()}>Replay</button><button className="btn secondary" disabled={busy} onClick={() => void changeGame()}>Change game · keep room</button><button className="btn danger" disabled={busy} onClick={() => void endRoom()}>End room</button></div></section>}
   </main>;
 }
