@@ -16,10 +16,11 @@ export type LiveRoom = {
   allow_custom_photos: boolean;
   allow_late_join: boolean;
   ranking_visibility: RankingVisibility;
+  room_theme?: string;
   expires_at?: string | null;
 };
 
-export type LiveParticipant = {
+export type ParticipantSession = {
   id: string;
   session_token: string;
   nickname: string;
@@ -32,9 +33,11 @@ export type LiveParticipant = {
   disconnected_at?: string | null;
 };
 
+export type PublicParticipant = Omit<ParticipantSession, 'session_token'> & { left_at?: string | null };
+
 export type RoomSnapshot = {
   room: LiveRoom;
-  participants: LiveParticipant[];
+  participants: PublicParticipant[];
   counts: {
     active: number;
     online: number;
@@ -94,14 +97,14 @@ export async function createLiveRoom(accessToken: string, input: CreateRoomPaylo
 }
 
 export async function joinLiveRoom(accessToken: string, roomCode: string, input: JoinRoomPayload) {
-  return requestJson<{ room: LiveRoom; participant: LiveParticipant }>(`/api/rooms/${encodeURIComponent(roomCode)}/join`, {
+  return requestJson<{ room: LiveRoom; participant: ParticipantSession }>(`/api/rooms/${encodeURIComponent(roomCode)}/join`, {
     method: 'POST',
     body: JSON.stringify(input),
   }, accessToken);
 }
 
 export async function reconnectLiveRoom(accessToken: string, roomCode: string, sessionToken: string) {
-  return requestJson<{ room: LiveRoom; participant: LiveParticipant }>(`/api/rooms/${encodeURIComponent(roomCode)}/reconnect`, {
+  return requestJson<{ room: LiveRoom; participant: ParticipantSession }>(`/api/rooms/${encodeURIComponent(roomCode)}/reconnect`, {
     method: 'POST',
     body: JSON.stringify({ sessionToken }),
   }, accessToken);
@@ -120,6 +123,13 @@ export async function updateLiveRoom(accessToken: string, roomCode: string, inpu
 
 export async function heartbeatRoom(accessToken: string, roomCode: string, sessionToken: string) {
   return requestJson<{ ok: true; serverTime: string }>(`/api/rooms/${encodeURIComponent(roomCode)}/heartbeat`, {
+    method: 'POST',
+    body: JSON.stringify({ sessionToken }),
+  }, accessToken);
+}
+
+export async function leaveLiveRoom(accessToken: string, roomCode: string, sessionToken: string) {
+  return requestJson<{ ok: true }>(`/api/rooms/${encodeURIComponent(roomCode)}/leave`, {
     method: 'POST',
     body: JSON.stringify({ sessionToken }),
   }, accessToken);
