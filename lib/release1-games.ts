@@ -32,8 +32,8 @@ export function isBingoWinner<T>(card: readonly T[], drawn: readonly T[], size: 
 }
 
 export function bingoWinnersOnDraw<T>(cards: Record<string, readonly T[]>, previousDraws: readonly T[], newDraw: T, size: number) {
-  const before = Object.entries(cards).filter(([,card])=>isBingoWinner(card, previousDraws)).map(([id])=>id);
-  const after = Object.entries(cards).filter(([,card])=>isBingoWinner(card, [...previousDraws,newDraw])).map(([id])=>id);
+  const before = Object.entries(cards).filter(([,card])=>isBingoWinner(card, previousDraws, size)).map(([id])=>id);
+  const after = Object.entries(cards).filter(([,card])=>isBingoWinner(card, [...previousDraws,newDraw], size)).map(([id])=>id);
   return after.filter((id)=>!before.includes(id));
 }
 
