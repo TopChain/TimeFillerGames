@@ -21,6 +21,16 @@ export function generateBingoCandidates(size: number, count = 3, rng: Rng = Math
   return Array.from({ length: count }, () => shuffle(pool, rng).slice(0, size * size));
 }
 
+export function generatePeopleBingoCandidates<T>(people: readonly T[], count = 3, size = 5, rng: Rng = Math.random) {
+  if (!Number.isInteger(size) || size < 2 || size > 10) throw new Error('Unsupported People Bingo board size');
+  if (!Number.isInteger(count) || count < 1 || count > 10) throw new Error('Unsupported People Bingo candidate count');
+  const required = size * size;
+  if (people.length < required) throw new Error(`People Bingo ${size}×${size} requires ${required} unique participants.`);
+  const unique = new Set(people);
+  if (unique.size !== people.length) throw new Error('People Bingo participant pool must contain unique identities.');
+  return Array.from({ length: count }, () => shuffle(people, rng).slice(0, required));
+}
+
 export function drawNextUnused<T>(pool: readonly T[], drawn: readonly T[], rng: Rng = Math.random): T {
   const remaining = pool.filter((item) => !drawn.includes(item));
   if (!remaining.length) throw new Error('Draw pool exhausted');
