@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './quick-draw.css';
 import './people-bingo.css';
+import './room-qr.css';
 
 export const metadata: Metadata = {
   title: 'TimeFillerGames — Make every spare moment playable',
