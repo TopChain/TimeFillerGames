@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { removeParticipant, setParticipantRole, type LiveRoom, type PublicParticipant } from '@/lib/client-room';
+import { useEffect, useState } from 'react';
+import { fetchModerationEvents, removeParticipant, renameParticipant, setParticipantRole, unlockParticipantNickname, type LiveRoom, type ModerationEvent, type PublicParticipant } from '@/lib/client-room';
 
 type Props = {
   accessToken: string;
@@ -11,59 +11,107 @@ type Props = {
   onChanged: () => Promise<void> | void;
 };
 
+function eventSummary(event: ModerationEvent) {
+  const details = event.details ?? {};
+  if (event.action === 'role_changed') return `Role: ${String(details.from ?? '—')} → ${String(details.to ?? '—')}`;
+  if (event.action === 'participant_removed') return `Removed ${String(details.nickname ?? 'participant')}`;
+  if (event.action === 'nickname_overridden') return `Nickname: ${String(details.from ?? '—')} → ${String(details.to ?? '—')}`;
+  return `Unlocked nickname ${String(details.nickname ?? '')}`.trim();
+}
+
 export function HostModerationPanel({ accessToken, roomCode, roomStatus, participants, onChanged }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [nicknameDraft, setNicknameDraft] = useState('');
+  const [events, setEvents] = useState<ModerationEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const lobby = roomStatus === 'lobby';
 
+  async function refreshEvents() {
+    try {
+      const result = await fetchModerationEvents(accessToken, roomCode);
+      setEvents(result.events);
+    } catch {
+      // Room moderation remains usable even if the audit feed is temporarily unavailable.
+    }
+  }
+
+  useEffect(() => { void refreshEvents(); }, [accessToken, roomCode]);
+
+  async function afterMutation() {
+    await onChanged();
+    await refreshEvents();
+  }
+
   async function changeRole(participant: PublicParticipant, role: 'participant' | 'spectator') {
-    setBusyId(participant.id);
-    setError(null);
+    setBusyId(participant.id); setError(null);
     try {
       await setParticipantRole(accessToken, roomCode, participant.id, role);
-      await onChanged();
+      await afterMutation();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not update this participant.');
-    } finally {
-      setBusyId(null);
-    }
+    } finally { setBusyId(null); }
+  }
+
+  async function saveNickname(participant: PublicParticipant) {
+    setBusyId(participant.id); setError(null);
+    try {
+      await renameParticipant(accessToken, roomCode, participant.id, nicknameDraft);
+      setEditingId(null);
+      setNicknameDraft('');
+      await afterMutation();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not override this nickname.');
+    } finally { setBusyId(null); }
+  }
+
+  async function unlockNickname(participant: PublicParticipant) {
+    setBusyId(participant.id); setError(null);
+    try {
+      await unlockParticipantNickname(accessToken, roomCode, participant.id);
+      await afterMutation();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not unlock this nickname.');
+    } finally { setBusyId(null); }
   }
 
   async function remove(participant: PublicParticipant) {
-    setBusyId(participant.id);
-    setError(null);
+    setBusyId(participant.id); setError(null);
     try {
       await removeParticipant(accessToken, roomCode, participant.id);
       setConfirmRemoveId(null);
-      await onChanged();
+      await afterMutation();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not remove this participant.');
-    } finally {
-      setBusyId(null);
-    }
+    } finally { setBusyId(null); }
   }
 
   return <details className="host-moderation">
-    <summary>
-      <span>Room moderation</span>
-      <strong>{participants.length}</strong>
-    </summary>
+    <summary><span>Room moderation</span><strong>{participants.length}</strong></summary>
     <div className="host-moderation-body">
-      <p className="support">Move participants to spectator only in the lobby. Removal remains available during a live game for safety or abuse control.</p>
-      {!lobby && <div className="notice warning">Role changes are locked until the room returns to the lobby so active game state stays consistent.</div>}
+      <p className="support">Role changes are lobby-only. Nickname override and emergency removal remain available during a live game. Host nickname overrides are locked and written to the moderation audit log.</p>
+      {!lobby && <div className="notice warning">Participant/spectator role changes are locked until the room returns to the lobby so active game state stays consistent.</div>}
       {error && <div className="notice warning" role="alert">{error}</div>}
       <div className="host-moderation-list">
         {participants.length === 0 && <div className="notice">No active room members to moderate.</div>}
         {participants.map((participant) => {
           const busy = busyId === participant.id;
           const confirming = confirmRemoveId === participant.id;
+          const editing = editingId === participant.id;
           return <div className="host-moderation-row" key={participant.id}>
             <div className="host-moderation-identity">
-              <strong>{participant.nickname}</strong>
-              <span>{participant.role} · {participant.online ? 'online' : 'reconnecting'}</span>
+              {editing ? <input aria-label={`New nickname for ${participant.nickname}`} maxLength={24} value={nicknameDraft} onChange={(event) => setNicknameDraft(event.target.value)} /> : <strong>{participant.nickname}{participant.nickname_locked ? ' · 🔒' : ''}</strong>}
+              <span>{participant.role} · {participant.online ? 'online' : 'reconnecting'}{participant.nickname_locked ? ' · Host-locked name' : ''}</span>
             </div>
             <div className="host-moderation-actions">
+              {editing ? <>
+                <button className="btn primary" disabled={busy || nicknameDraft.trim().length < 2} onClick={() => void saveNickname(participant)}>{busy ? 'Saving…' : 'Save & lock'}</button>
+                <button className="btn secondary" disabled={busy} onClick={() => { setEditingId(null); setNicknameDraft(''); }}>Cancel</button>
+              </> : <>
+                <button className="btn secondary" disabled={busy} onClick={() => { setEditingId(participant.id); setNicknameDraft(participant.nickname); }}>Rename</button>
+                {participant.nickname_locked && <button className="btn secondary" disabled={busy} onClick={() => void unlockNickname(participant)}>Unlock name</button>}
+              </>}
               {participant.role === 'spectator'
                 ? <button className="btn secondary" disabled={!lobby || busy} onClick={() => void changeRole(participant, 'participant')}>Restore player</button>
                 : <button className="btn secondary" disabled={!lobby || busy} onClick={() => void changeRole(participant, 'spectator')}>Make spectator</button>}
@@ -74,6 +122,11 @@ export function HostModerationPanel({ accessToken, roomCode, roomStatus, partici
             </div>
           </div>;
         })}
+      </div>
+
+      <div className="moderation-audit">
+        <div className="section-heading"><div><div className="eyebrow">Audit trail</div><h3>Recent moderation activity</h3></div><button className="btn secondary" onClick={() => void refreshEvents()}>Refresh</button></div>
+        {events.length === 0 ? <div className="notice">No moderation actions recorded in this room yet.</div> : events.slice(0, 12).map((event) => <div className="control-row" key={event.id}><span>{eventSummary(event)}</span><strong>{new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong></div>)}
       </div>
     </div>
   </details>;
