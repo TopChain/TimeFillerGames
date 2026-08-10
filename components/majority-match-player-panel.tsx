@@ -25,7 +25,13 @@ export function MajorityMatchPlayerPanel({ accessToken, roomCode }: { accessToke
     return () => { window.clearInterval(poll); window.clearInterval(clock); };
   }, [refresh]);
 
-  const remaining = useMemo(() => snapshot ? Math.max(0, Math.ceil((new Date(snapshot.session.state.deadline).getTime() - now) / 1000)) : 0, [now, snapshot]);
+  const remaining = useMemo(() => {
+    if (!snapshot) return 0;
+    const reference = snapshot.room.status === 'paused' && snapshot.session.state.pauseStartedAt
+      ? new Date(snapshot.session.state.pauseStartedAt).getTime()
+      : now;
+    return Math.max(0, Math.ceil((new Date(snapshot.session.state.deadline).getTime() - reference) / 1000));
+  }, [now, snapshot]);
 
   async function vote(choice: string) {
     setBusy(true);
@@ -42,6 +48,7 @@ export function MajorityMatchPlayerPanel({ accessToken, roomCode }: { accessToke
   if (!snapshot) return <section className="panel"><div className="eyebrow">Majority Match</div><h2>Waiting for the live question.</h2>{error && <div className="notice warning">{error}</div>}</section>;
 
   const { session } = snapshot;
+  const paused = snapshot.room.status === 'paused' || session.status === 'paused';
   const questionNumber = session.state.roundIndex + 1;
 
   if (session.state.phase === 'ended') return <section className="panel"><div className="eyebrow">Majority Match</div><h2>Round complete.</h2><p className="support">The Host is reviewing results.</p></section>;
@@ -49,11 +56,12 @@ export function MajorityMatchPlayerPanel({ accessToken, roomCode }: { accessToke
   if (session.state.phase === 'answering') {
     const locked = Boolean(session.ownChoice);
     return <section className="panel majority-live-panel player-majority">
-      <div className="live-line"><span className="live-dot" /> QUESTION {questionNumber}/{session.config.questionCount}</div>
-      <div className="bingo-callout"><strong>{remaining}s</strong><span>Choose what you think the room will choose</span></div>
+      <div className="live-line"><span className="live-dot" /> {paused ? `PAUSED · QUESTION ${questionNumber}/${session.config.questionCount}` : `QUESTION ${questionNumber}/${session.config.questionCount}`}</div>
+      {paused && <div className="notice warning">The Host paused the room. Voting is frozen and will resume with the same remaining time.</div>}
+      <div className="bingo-callout"><strong>{remaining}s</strong><span>{paused ? 'answer time frozen' : 'Choose what you think the room will choose'}</span></div>
       <h2>{session.state.currentQuestion.prompt}</h2>
       {error && <div className="notice warning" role="alert">{error}</div>}
-      <div className="choice-grid">{session.state.currentQuestion.choices.map((choice) => <button className={`choice-card ${session.ownChoice === choice ? 'selected' : ''}`} key={choice} disabled={busy || locked || remaining <= 0} onClick={() => void vote(choice)}><strong>{choice}</strong>{session.ownChoice === choice && <span>✓ Locked</span>}</button>)}</div>
+      <div className="choice-grid">{session.state.currentQuestion.choices.map((choice) => <button className={`choice-card ${session.ownChoice === choice ? 'selected' : ''}`} key={choice} disabled={busy || locked || paused || remaining <= 0} onClick={() => void vote(choice)}><strong>{choice}</strong>{session.ownChoice === choice && <span>✓ Locked</span>}</button>)}</div>
       <div className="notice">There is no objectively correct answer and no speed bonus. Predict the group majority.</div>
     </section>;
   }
@@ -62,6 +70,7 @@ export function MajorityMatchPlayerPanel({ accessToken, roomCode }: { accessToke
   const scored = Boolean(session.ownChoice && reveal?.majorityChoices.includes(session.ownChoice));
   return <section className="panel majority-live-panel player-majority">
     <div className="eyebrow">Room result</div><h2>{session.state.currentQuestion.prompt}</h2>
+    {paused && <div className="notice warning">The Host paused the room before the next question.</div>}
     {reveal && <div className="majority-results">{session.state.currentQuestion.choices.map((choice) => {
       const isMajority = reveal.majorityChoices.includes(choice);
       return <div className={`control-row ${isMajority ? 'selected' : ''}`} key={choice}><span>{choice}{session.ownChoice === choice ? ' · Your prediction' : ''}</span><strong>{reveal.counts[choice] ?? 0}{reveal.percentages ? ` · ${reveal.percentages[choice] ?? 0}%` : ''}</strong></div>;
