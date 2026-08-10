@@ -6,7 +6,7 @@ export type QuickDrawSnapshot = {
   room: { joinCode: string; status: string; rankingVisibility: string };
   session: {
     id: string;
-    status: 'active' | 'ended';
+    status: 'active' | 'paused' | 'ended';
     config: {
       drawingSeconds: number;
       artistTurns: number;
@@ -24,6 +24,7 @@ export type QuickDrawSnapshot = {
       currentArtistId: string;
       currentArtistNickname: string;
       deadline: string;
+      pauseStartedAt?: string | null;
       revealWord: string | null;
     };
     artist: { participantId: string; nickname: string; isSelf: boolean };
