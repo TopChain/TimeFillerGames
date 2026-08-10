@@ -50,7 +50,10 @@ function StandardBingoPlayerPanel({ accessToken, roomCode, participantId }: { ac
 
   const remaining = useMemo(() => {
     if (!snapshot) return 0;
-    return Math.max(0, Math.ceil((new Date(snapshot.session.state.selectionDeadline).getTime() - now) / 1000));
+    const reference = snapshot.room.status === 'paused' && snapshot.session.state.pauseStartedAt
+      ? new Date(snapshot.session.state.pauseStartedAt).getTime()
+      : now;
+    return Math.max(0, Math.ceil((new Date(snapshot.session.state.selectionDeadline).getTime() - reference) / 1000));
   }, [now, snapshot]);
 
   async function choose(index: number) {
@@ -70,22 +73,25 @@ function StandardBingoPlayerPanel({ accessToken, roomCode, participantId }: { ac
   }
 
   const { session, ownCard } = snapshot;
-  if (!ownCard) return <section className="panel bingo-live-panel"><div className="eyebrow">Standard Bingo</div><h2>Spectator view</h2><p className="support">This seat does not have an active Bingo card in the current round.</p></section>;
+  const paused = snapshot.room.status === 'paused' || session.status === 'paused';
+  if (!ownCard) return <section className="panel bingo-live-panel"><div className="eyebrow">Standard Bingo</div><h2>Spectator view</h2>{paused && <div className="notice warning">The Host paused the game.</div>}<p className="support">This seat does not have an active Bingo card in the current round.</p></section>;
 
   if (session.state.phase === 'card-selection' && !ownCard.selected_card) {
     const expired = remaining <= 0;
     return <section className="panel bingo-live-panel player-bingo">
-      <div className="eyebrow">Choose your card</div><h2>{expired ? 'Selection closed' : `${remaining}s remaining`}</h2>
+      <div className="eyebrow">Choose your card</div><h2>{paused ? `Paused · ${remaining}s saved` : expired ? 'Selection closed' : `${remaining}s remaining`}</h2>
+      {paused && <div className="notice warning">The Host paused the room. Card selection is frozen and will resume with the same remaining time.</div>}
       <p className="support">{expired ? 'The timer expired. Waiting for the server to lock an automatic card assignment.' : 'Choose one of your three personal candidate cards. If time expires, the server assigns one automatically.'}</p>
       {error && <div className="notice warning" role="alert">{error}</div>}
-      <div className="candidate-grid">{ownCard.candidate_cards.map((card, index) => <button className="candidate-card" disabled={busy || expired} onClick={() => void choose(index)} key={index}><span className="pill">Card {index + 1}</span><BingoBoard numbers={card} size={session.config.boardSize} compact /><strong>{expired ? 'Waiting…' : `Select card ${index + 1}`}</strong></button>)}</div>
+      <div className="candidate-grid">{ownCard.candidate_cards.map((card, index) => <button className="candidate-card" disabled={busy || expired || paused} onClick={() => void choose(index)} key={index}><span className="pill">Card {index + 1}</span><BingoBoard numbers={card} size={session.config.boardSize} compact /><strong>{paused ? 'Paused' : expired ? 'Waiting…' : `Select card ${index + 1}`}</strong></button>)}</div>
     </section>;
   }
 
   const card = ownCard.selected_card ?? ownCard.candidate_cards[ownCard.selected_candidate ?? 0];
   const ownWinner = session.winners.find((winner) => winner.participant_id === participantId);
   return <section className="panel bingo-live-panel player-bingo">
-    <div className="live-line"><span className="live-dot" /> {session.state.phase === 'ended' ? 'ROUND ENDED' : 'LIVE STANDARD BINGO'}</div>
+    <div className="live-line"><span className="live-dot" /> {paused ? 'PAUSED · STANDARD BINGO' : session.state.phase === 'ended' ? 'ROUND ENDED' : 'LIVE STANDARD BINGO'}</div>
+    {paused && <div className="notice warning">The Host paused the game. Your board stays locked and no new number can be drawn until resume.</div>}
     <div className="bingo-callout draw"><span>Latest draw</span><strong>{session.state.latestDraw ?? '—'}</strong></div>
     <BingoBoard numbers={card} size={session.config.boardSize} drawn={session.state.drawn} />
     <div className="meta"><span className="pill">Draws {session.state.drawn.length}</span><span className="pill">Automatically marked</span><span className="pill">One line wins</span></div>
