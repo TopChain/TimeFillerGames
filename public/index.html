@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6757ff" />
+  <title>TimeFillerGames Multiplayer</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><div class="logo">⏱</div><span>TimeFillerGames</span></div>
+      <div class="chip">Realtime prototype v0.2</div>
+    </header>
+
+    <main>
+      <section id="home" class="screen active">
+        <div class="hero">
+          <div>
+            <div class="eyebrow">Turn waiting time into play time</div>
+            <h1>Fill the gap.<br />Start a game.</h1>
+            <p class="lead">Create a room on one device, join from another, and play a synchronized English Word Guess round in real time.</p>
+            <div class="row space-top">
+              <button class="btn primary" data-go="hostSetup">Host a Game</button>
+              <button class="btn secondary" data-go="join">Join a Game</button>
+            </div>
+          </div>
+          <div class="hero-card stack">
+            <div class="feature"><div>🌐</div><div><b>Multi-device rooms</b><span>Room state is synchronized through Socket.IO.</span></div></div>
+            <div class="feature"><div>🎛️</div><div><b>Host control</b><span>The host manages difficulty, round time, scoring, and round flow.</span></div></div>
+            <div class="feature"><div>🎮</div><div><b>Modular game slots</b><span>Game 4 is implemented; Games 1–3 stay reserved until their exact rules are restored.</span></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="hostSetup" class="screen">
+        <div class="page-title"><h2>Create a room</h2><p>Set the room limits, then share the generated code.</p></div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="field"><label>Host display name</label><input id="hostName" value="Host" maxlength="20" /></div>
+            <div class="field"><label>Session length</label><select id="sessionLength"><option value="5">5 minutes</option><option value="10" selected>10 minutes</option><option value="15">15 minutes</option></select></div>
+            <div class="field"><label>Maximum players</label><select id="maxPlayers"><option>4</option><option>6</option><option selected>8</option><option>10</option><option>12</option></select></div>
+            <button id="createRoom" class="btn primary wide">Create Room</button>
+            <button class="btn secondary wide top-gap" data-go="home">Back</button>
+          </div>
+          <div class="panel">
+            <h3>Current game plan</h3>
+            <div class="stack">
+              <div class="game-card"><span>Game 1</span><b>Reserved</b><small>Exact prior rules still needed.</small></div>
+              <div class="game-card"><span>Game 2</span><b>Reserved</b><small>Exact prior rules still needed.</small></div>
+              <div class="game-card"><span>Game 3</span><b>Reserved</b><small>Exact prior rules still needed.</small></div>
+              <div class="game-card ready"><span>Game 4</span><b>English Word Guess</b><small>Realtime multiplayer foundation is active.</small></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="join" class="screen">
+        <div class="page-title"><h2>Join a room</h2><p>Use the six-digit code shown on the host device.</p></div>
+        <div class="panel narrow">
+          <div class="field"><label>Your name</label><input id="joinName" placeholder="Player name" maxlength="20" /></div>
+          <div class="field"><label>Room code</label><input id="joinCode" placeholder="482915" inputmode="numeric" maxlength="6" /></div>
+          <button id="joinRoom" class="btn primary wide">Join Room</button>
+          <button class="btn secondary wide top-gap" data-go="home">Back</button>
+        </div>
+      </section>
+
+      <section id="lobby" class="screen">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="eyebrow">Room code</div>
+            <div id="roomCode" class="lobby-code">------</div>
+            <div id="roleText" class="status"></div>
+            <div id="players" class="players"></div>
+          </div>
+          <div class="panel">
+            <h3>Word Guess</h3>
+            <div class="field"><label>Vocabulary difficulty</label><select id="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div>
+            <div class="field"><label>Round length</label><select id="roundSeconds"><option value="30">30 seconds</option><option value="45" selected>45 seconds</option><option value="60">60 seconds</option></select></div>
+            <button id="saveSettings" class="btn secondary wide host-only">Save Settings</button>
+            <button id="startGame" class="btn success wide top-gap host-only">Start Word Guess</button>
+            <p class="status player-only">Waiting for the host to start the round.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="game" class="screen">
+        <div class="panel word-stage">
+          <div class="row split"><div class="score">Score: <span id="score">0</span></div><div class="timer">Time: <span id="timeLeft">0</span>s</div></div>
+          <div class="eyebrow big-gap">English Word Guess</div>
+          <div id="hostWordBox" class="host-only">
+            <div id="word" class="word">READY</div>
+            <div id="hint" class="hint"></div>
+            <div class="row center top-space"><button id="correct" class="btn success">✓ Correct</button><button id="skip" class="btn danger">Skip</button></div>
+            <button id="endRound" class="btn secondary top-space">End Round</button>
+          </div>
+          <div id="playerPromptBox" class="player-only player-prompt">
+            <div class="word small-word">LISTEN & GUESS</div>
+            <div id="playerPrompt" class="hint">The host will give clues.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="results" class="screen">
+        <div class="panel narrow center-text results-panel">
+          <div class="eyebrow">Round complete</div>
+          <h2>Score: <span id="finalScore">0</span></h2>
+          <p class="lead compact">The score is synchronized for everyone in the room.</p>
+          <button id="backLobby" class="btn primary host-only">Back to Lobby</button>
+          <p class="status player-only">Waiting for the host.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
