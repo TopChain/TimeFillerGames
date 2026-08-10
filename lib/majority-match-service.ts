@@ -7,6 +7,9 @@ import { rankWithCompetitionTies } from './game-rules';
 import { majorityQuestionsForCategory, type MajorityCategory, type MajorityQuestion } from './majority-match-content';
 
 const CATEGORIES: MajorityCategory[] = ['Classroom', 'Friends', 'Family', 'Workplace', 'General'];
+// Engineering normalization value. The Product Plan says matched majority predictions receive points,
+// but does not prescribe a numeric point scale. Keep one explicit constant so later UX testing can tune it.
+const MAJORITY_POINTS_PER_MATCH = 1000;
 
 type MajorityConfig = {
   category: MajorityCategory;
@@ -219,7 +222,7 @@ export async function revealMajorityQuestion(roomCodeValue: string, hostUserId: 
     const { error: scoreError } = await admin.from('score_entries').insert(winners.map((participantId) => ({
       game_session_id: session.id,
       participant_id: participantId,
-      points: 1000,
+      points: MAJORITY_POINTS_PER_MATCH,
       reason: roundId,
     })));
     if (scoreError) throw new Error(scoreError.message);
@@ -308,19 +311,23 @@ export async function getMajorityMatchState(roomCodeValue: string, userId: strin
     ownChoice = ownSubmission ? String((ownSubmission.payload as { choice?: unknown })?.choice ?? '') : null;
   }
 
+  const { data: activePeople, error: activePeopleError } = await admin.from('participants')
+    .select('id,nickname,avatar_key,role')
+    .eq('room_id', room.id)
+    .is('left_at', null)
+    .neq('role', 'spectator');
+  if (activePeopleError) throw new Error(activePeopleError.message);
+
+  const totals = new Map<string, number>();
+  for (const person of activePeople ?? []) totals.set(person.id, 0);
+
   const { data: scores, error: scoreError } = await admin.from('score_entries')
     .select('participant_id,points')
     .eq('game_session_id', session.id);
   if (scoreError) throw new Error(scoreError.message);
-  const totals = new Map<string, number>();
   for (const score of scores ?? []) totals.set(score.participant_id, (totals.get(score.participant_id) ?? 0) + score.points);
 
-  const participantIds = [...totals.keys()];
-  const { data: people, error: peopleError } = participantIds.length
-    ? await admin.from('participants').select('id,nickname,avatar_key').in('id', participantIds)
-    : { data: [], error: null };
-  if (peopleError) throw new Error(peopleError.message);
-  const peopleMap = new Map((people ?? []).map((person) => [person.id, person]));
+  const peopleMap = new Map((activePeople ?? []).map((person) => [person.id, person]));
   const ranked = rankWithCompetitionTies([...totals.entries()].map(([id, score]) => ({ id, score }))).map((entry) => ({
     participant_id: entry.id,
     nickname: peopleMap.get(entry.id)?.nickname ?? 'Player',
@@ -330,7 +337,7 @@ export async function getMajorityMatchState(roomCodeValue: string, userId: strin
   }));
 
   const ownResult = member.participantId
-    ? ranked.find((entry) => entry.participant_id === member.participantId) ?? { participant_id: member.participantId, nickname: 'Player', avatarKey: null, points: 0, placement: ranked.length + 1 }
+    ? ranked.find((entry) => entry.participant_id === member.participantId) ?? null
     : null;
 
   const publicRankings = member.role === 'host'
