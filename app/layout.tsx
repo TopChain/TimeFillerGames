@@ -1,0 +1,16 @@
+import type { Metadata, Viewport } from 'next';
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: 'TimeFillerGames — Make every spare moment playable',
+  description: 'Host-led multiplayer mini-games for 3, 5, 8, or 10 minutes of spare group time.',
+  applicationName: 'TimeFillerGames',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'TimeFillerGames', statusBarStyle: 'default' },
+};
+
+export const viewport: Viewport = { themeColor: '#5B5DEE', colorScheme: 'light dark' };
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="en"><body>{children}</body></html>;
+}
