@@ -18,8 +18,11 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
     const host = await requireHostUser(request);
     if (!host) return NextResponse.json({ error: 'A signed-in Host is required to start Bingo.' }, { status: 401 });
     const { code } = await context.params;
-    const body = await request.json() as { boardSize?: unknown; cardChoiceSeconds?: unknown };
-    const result = await startStandardBingo(code, host.id, body);
+    const body = await request.json() as Record<string, unknown>;
+    const result = await startStandardBingo(code, host.id, {
+      boardSize: body.boardSize,
+      cardChoiceSeconds: body.cardChoiceSeconds,
+    });
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not start Bingo.' }, { status: 400 });
