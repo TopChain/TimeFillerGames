@@ -4,6 +4,7 @@ import './quick-draw.css';
 import './people-bingo.css';
 import './room-qr.css';
 import './host-moderation.css';
+import './accessibility.css';
 
 export const metadata: Metadata = {
   title: 'TimeFillerGames — Make every spare moment playable',
