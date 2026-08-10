@@ -28,6 +28,7 @@ export type ParticipantSession = {
   avatar_key: string | null;
   ui_language: Locale;
   role: 'host' | 'participant' | 'spectator' | 'cohost';
+  ready: boolean;
   online: boolean;
   last_seen_at?: string;
   disconnected_at?: string | null;
@@ -37,10 +38,12 @@ export type PublicParticipant = Omit<ParticipantSession, 'session_token'> & { le
 
 export type RoomSnapshot = {
   room: LiveRoom;
+  viewer: { isHost: boolean };
   participants: PublicParticipant[];
   counts: {
     active: number;
     online: number;
+    ready: number;
     reconnecting: number;
     spectators: number;
   };
@@ -90,24 +93,15 @@ async function requestJson<T>(url: string, init: RequestInit = {}, accessToken?:
 }
 
 export async function createLiveRoom(accessToken: string, input: CreateRoomPayload) {
-  return requestJson<{ room: LiveRoom }>('/api/rooms', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  }, accessToken);
+  return requestJson<{ room: LiveRoom }>('/api/rooms', { method: 'POST', body: JSON.stringify(input) }, accessToken);
 }
 
 export async function joinLiveRoom(accessToken: string, roomCode: string, input: JoinRoomPayload) {
-  return requestJson<{ room: LiveRoom; participant: ParticipantSession }>(`/api/rooms/${encodeURIComponent(roomCode)}/join`, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  }, accessToken);
+  return requestJson<{ room: LiveRoom; participant: ParticipantSession }>(`/api/rooms/${encodeURIComponent(roomCode)}/join`, { method: 'POST', body: JSON.stringify(input) }, accessToken);
 }
 
 export async function reconnectLiveRoom(accessToken: string, roomCode: string, sessionToken: string) {
-  return requestJson<{ room: LiveRoom; participant: ParticipantSession }>(`/api/rooms/${encodeURIComponent(roomCode)}/reconnect`, {
-    method: 'POST',
-    body: JSON.stringify({ sessionToken }),
-  }, accessToken);
+  return requestJson<{ room: LiveRoom; participant: ParticipantSession }>(`/api/rooms/${encodeURIComponent(roomCode)}/reconnect`, { method: 'POST', body: JSON.stringify({ sessionToken }) }, accessToken);
 }
 
 export async function fetchRoomSnapshot(accessToken: string, roomCode: string) {
@@ -115,22 +109,17 @@ export async function fetchRoomSnapshot(accessToken: string, roomCode: string) {
 }
 
 export async function updateLiveRoom(accessToken: string, roomCode: string, input: RoomUpdatePayload) {
-  return requestJson<{ room: LiveRoom }>(`/api/rooms/${encodeURIComponent(roomCode)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(input),
-  }, accessToken);
+  return requestJson<{ room: LiveRoom }>(`/api/rooms/${encodeURIComponent(roomCode)}`, { method: 'PATCH', body: JSON.stringify(input) }, accessToken);
 }
 
 export async function heartbeatRoom(accessToken: string, roomCode: string, sessionToken: string) {
-  return requestJson<{ ok: true; serverTime: string }>(`/api/rooms/${encodeURIComponent(roomCode)}/heartbeat`, {
-    method: 'POST',
-    body: JSON.stringify({ sessionToken }),
-  }, accessToken);
+  return requestJson<{ ok: true; serverTime: string }>(`/api/rooms/${encodeURIComponent(roomCode)}/heartbeat`, { method: 'POST', body: JSON.stringify({ sessionToken }) }, accessToken);
+}
+
+export async function setReadyState(accessToken: string, roomCode: string, sessionToken: string, ready: boolean) {
+  return requestJson<{ participant: ParticipantSession }>(`/api/rooms/${encodeURIComponent(roomCode)}/ready`, { method: 'POST', body: JSON.stringify({ sessionToken, ready }) }, accessToken);
 }
 
 export async function leaveLiveRoom(accessToken: string, roomCode: string, sessionToken: string) {
-  return requestJson<{ ok: true }>(`/api/rooms/${encodeURIComponent(roomCode)}/leave`, {
-    method: 'POST',
-    body: JSON.stringify({ sessionToken }),
-  }, accessToken);
+  return requestJson<{ ok: true }>(`/api/rooms/${encodeURIComponent(roomCode)}/leave`, { method: 'POST', body: JSON.stringify({ sessionToken }) }, accessToken);
 }
