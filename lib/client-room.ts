@@ -24,6 +24,7 @@ export type ParticipantSession = {
   id: string;
   session_token: string;
   nickname: string;
+  nickname_locked?: boolean;
   avatar_category: string | null;
   avatar_key: string | null;
   ui_language: Locale;
