@@ -2,9 +2,28 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchBingo, selectBingoCard, type BingoSnapshot } from '@/lib/client-bingo';
+import { fetchLatestBingoMode } from '@/lib/client-people-bingo';
 import { BingoBoard } from './bingo-board';
+import { PeopleBingoPlayerPanel } from './people-bingo-player-panel';
 
 export function BingoPlayerPanel({ accessToken, roomCode, participantId }: { accessToken: string; roomCode: string; participantId: string }) {
+  const [mode, setMode] = useState<'standard-number' | 'people' | null>(null);
+  const [modeError, setModeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchLatestBingoMode(accessToken, roomCode)
+      .then((result) => { if (!cancelled) setMode(result.mode); })
+      .catch((cause) => { if (!cancelled) setModeError(cause instanceof Error ? cause.message : 'Could not identify Bingo mode.'); });
+    return () => { cancelled = true; };
+  }, [accessToken, roomCode]);
+
+  if (mode === 'people') return <PeopleBingoPlayerPanel accessToken={accessToken} roomCode={roomCode} participantId={participantId} />;
+  if (mode === 'standard-number') return <StandardBingoPlayerPanel accessToken={accessToken} roomCode={roomCode} participantId={participantId} />;
+  return <section className="panel bingo-live-panel"><div className="eyebrow">Bingo</div><h2>Loading Bingo mode…</h2>{modeError && <div className="notice warning" role="alert">{modeError}</div>}</section>;
+}
+
+function StandardBingoPlayerPanel({ accessToken, roomCode, participantId }: { accessToken: string; roomCode: string; participantId: string }) {
   const [snapshot, setSnapshot] = useState<BingoSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,50 +66,30 @@ export function BingoPlayerPanel({ accessToken, roomCode, participantId }: { acc
   }
 
   if (!snapshot) {
-    return <section className="panel bingo-live-panel">
-      <div className="eyebrow">Bingo</div>
-      <h2>Waiting for the Host to start the round.</h2>
-      {error && <div className="notice warning" role="alert">{error}</div>}
-    </section>;
+    return <section className="panel bingo-live-panel"><div className="eyebrow">Standard Bingo</div><h2>Waiting for the Host to start the round.</h2>{error && <div className="notice warning" role="alert">{error}</div>}</section>;
   }
 
   const { session, ownCard } = snapshot;
-  if (!ownCard) {
-    return <section className="panel bingo-live-panel">
-      <div className="eyebrow">Bingo</div>
-      <h2>Spectator view</h2>
-      <p className="support">This seat does not have an active Bingo card in the current round.</p>
-    </section>;
-  }
+  if (!ownCard) return <section className="panel bingo-live-panel"><div className="eyebrow">Standard Bingo</div><h2>Spectator view</h2><p className="support">This seat does not have an active Bingo card in the current round.</p></section>;
 
   if (session.state.phase === 'card-selection' && !ownCard.selected_card) {
     const expired = remaining <= 0;
     return <section className="panel bingo-live-panel player-bingo">
-      <div className="eyebrow">Choose your card</div>
-      <h2>{expired ? 'Selection closed' : `${remaining}s remaining`}</h2>
+      <div className="eyebrow">Choose your card</div><h2>{expired ? 'Selection closed' : `${remaining}s remaining`}</h2>
       <p className="support">{expired ? 'The timer expired. Waiting for the server to lock an automatic card assignment.' : 'Choose one of your three personal candidate cards. If time expires, the server assigns one automatically.'}</p>
       {error && <div className="notice warning" role="alert">{error}</div>}
-      <div className="candidate-grid">
-        {ownCard.candidate_cards.map((card, index) => <button className="candidate-card" disabled={busy || expired} onClick={() => void choose(index)} key={index}>
-          <span className="pill">Card {index + 1}</span>
-          <BingoBoard numbers={card} size={session.config.boardSize} compact />
-          <strong>{expired ? 'Waiting…' : `Select card ${index + 1}`}</strong>
-        </button>)}
-      </div>
+      <div className="candidate-grid">{ownCard.candidate_cards.map((card, index) => <button className="candidate-card" disabled={busy || expired} onClick={() => void choose(index)} key={index}><span className="pill">Card {index + 1}</span><BingoBoard numbers={card} size={session.config.boardSize} compact /><strong>{expired ? 'Waiting…' : `Select card ${index + 1}`}</strong></button>)}</div>
     </section>;
   }
 
   const card = ownCard.selected_card ?? ownCard.candidate_cards[ownCard.selected_candidate ?? 0];
   const ownWinner = session.winners.find((winner) => winner.participant_id === participantId);
-
   return <section className="panel bingo-live-panel player-bingo">
-    <div className="live-line"><span className="live-dot" /> {session.state.phase === 'ended' ? 'ROUND ENDED' : 'LIVE BINGO'}</div>
+    <div className="live-line"><span className="live-dot" /> {session.state.phase === 'ended' ? 'ROUND ENDED' : 'LIVE STANDARD BINGO'}</div>
     <div className="bingo-callout draw"><span>Latest draw</span><strong>{session.state.latestDraw ?? '—'}</strong></div>
     <BingoBoard numbers={card} size={session.config.boardSize} drawn={session.state.drawn} />
     <div className="meta"><span className="pill">Draws {session.state.drawn.length}</span><span className="pill">Automatically marked</span><span className="pill">One line wins</span></div>
     {ownWinner && <div className="notice success">You earned shared placement #{ownWinner.placement} on draw {ownWinner.completing_draw_index + 1}.</div>}
-    {session.winners.length > 0 && <div className="winner-list">
-      {session.winners.slice(0, 3).map((winner) => <div className="control-row" key={winner.participant_id}><span>#{winner.placement} {winner.nickname}</span><strong>Winner</strong></div>)}
-    </div>}
+    {session.winners.length > 0 && <div className="winner-list">{session.winners.slice(0, 3).map((winner) => <div className="control-row" key={winner.participant_id}><span>#{winner.placement} {winner.nickname}</span><strong>Winner</strong></div>)}</div>}
   </section>;
 }
