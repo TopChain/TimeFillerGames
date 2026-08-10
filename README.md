@@ -1,81 +1,90 @@
 # TimeFillerGames
 
-TimeFillerGames is a fast multiplayer party-game platform designed to turn short periods of waiting time into group play.
+**Make every spare moment playable.**
 
-## Current milestone: v0.2 realtime prototype
+TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 minutes of spare group time. This release-candidate branch is being rebuilt directly from the approved Product Plan v1.0 and Brand & Product CI Guidelines v1.0.
 
-The project now has a real Node.js + Socket.IO multiplayer foundation instead of the original single-browser simulation.
+## Release strategy
 
-### Implemented
+- **Release 1:** Bingo, Majority Match, Quick Draw & Guess
+- **Release 1.1:** Word Challenge, Math Challenge
+- Participants join without an account through PIN / QR / direct link.
+- Host and Player use distinct semantic UI roles while sharing one master brand.
 
-- Host / participant entry flow
-- Six-digit room creation and joining
-- Multi-device realtime room synchronization
-- Host-owned room lifecycle
-- Configurable maximum player count
-- Synchronized lobby player list
-- Game 4: **English Word Guess**
-  - Easy / Medium / Hard vocabulary
-  - 30 / 45 / 60 second rounds
-  - Host-only word display and controls
-  - Participant guessing screen
-  - Synchronized timer
-  - Correct / Skip controls
-  - Synchronized score
-  - End-of-round results
-  - Return-to-lobby flow
-- Responsive browser UI
-- Health endpoint at `/health`
+## Current architecture
 
-### Intentionally not invented
+- Next.js + React + TypeScript
+- Web-first / installable PWA direction
+- Supabase-ready database + realtime boundary
+- Server-authoritative game-state design
+- Semantic CI tokens, not per-component raw colors
+- Six UI locales: `en`, `zh-Hant`, `zh-Hans`, `es`, `ja`, `ko`
 
-The final detailed rules for Games 1–3 are not present in the currently accessible source context. Those game slots remain reserved so this implementation does not silently change the agreed product design.
+## Local setup
 
-## Architecture
-
-- `server.js` — Express + Socket.IO realtime room/game server
-- `public/index.html` — multiplayer browser UI
-- `public/app.js` — client-side socket and interface logic
-- `public/style.css` — responsive visual system
-- `package.json` — Node runtime and dependencies
-
-Room state is currently kept **in memory**. Restarting the server clears active rooms. This is intentional for the prototype stage; persistent storage can be added after the room/game UX is validated.
-
-## Run locally
-
-Requirements: Node.js 18+
+Requirements: Node.js 20+
 
 ```bash
+cp .env.example .env.local
 npm install
-npm start
+npm run dev
 ```
 
-Then open:
+Open `http://localhost:3000`.
 
-```text
-http://localhost:3000
-```
+For a production Supabase environment, populate `.env.local`, then apply `supabase/migrations/001_initial.sql` through the Supabase migration workflow.
 
-For a multi-device test on the same local network, open the host computer's LAN IP and port `3000` from the other device, subject to local firewall settings.
-
-## Validation
-
-Basic JavaScript syntax checks:
+## Quality commands
 
 ```bash
-npm run check
+npm run typecheck
+npm run test
+npm run build
 ```
 
-## Next implementation steps
+`npm run check` runs the release verification sequence.
 
-1. Restore the exact specifications for Games 1–3 and implement them as independent game modules.
-2. Add reconnection/session recovery so temporary network loss does not immediately remove a player.
-3. Add persistent room/session infrastructure for production deployment.
-4. Add full localization for English, Traditional Chinese, Spanish, Japanese, and Korean.
-5. Apply the finalized TimeFillerGames brand/CI system.
-6. Add automated integration tests for room creation, joining, host authorization, timers, and scoring.
-7. Deploy a public staging environment for real phone-to-phone testing.
+## Product rules already encoded
 
-## Repository
+- Time-first presets: 3 / 5 / 8 / 10 minutes
+- Exact five-game portfolio and release assignment
+- Hard-minimum readiness logic
+- “No game-rule maximum” terminology
+- Competition-style shared-rank tie handling
+- Bingo normal board mapping: 5×5 / 6×6 / 7×7 / 8×8 for 3 / 5 / 8 / 10-minute planning presets
+- Word defaults: 5 / 10 / 15 / 20 questions
+- Math defaults: 6 / 10 / 16 / 20 questions
+- 60 built-in-avatar category model
+- Six-locale foundation
 
-`TopChain/TimeFillerGames`
+## Brand system encoded
+
+- Brand Indigo `#5B5DEE`
+- Play Teal `#22D3C5`
+- Action Coral `#FF647C`
+- Reward Gold `#FFC857`
+- Game Navy `#111827`
+- Cloud White `#F8FAFC`
+- Host primary `#5B5DEE`
+- Player primary `#0F7A86`
+- 20px cards, 12–16px controls, 44px minimum primary interaction height
+- reduced-motion support
+
+## What still blocks a public production launch
+
+The repository can be made deployment-ready in code, but public launch still requires external production inputs that cannot be invented or self-approved:
+
+1. Supabase project URL/keys and production database deployment.
+2. Final domain and hosting account / deployment target.
+3. Final master logo/icon asset exports for PWA icons and store/marketing surfaces.
+4. Privacy Policy and Terms appropriate to intended classroom/children use, reviewed for the launch jurisdictions.
+5. Final moderation/profanity implementation and operational abuse/report process.
+6. Curated/QA'd Release 1 content (especially Quick Draw word bank and Majority Match prompts).
+7. Real-device usability testing and load testing before advertising room capacity.
+8. Closed-beta validation of duration estimates.
+
+Do not describe Word Challenge as an official CEFR test or Math Challenge as a standardized placement assessment.
+
+## Branch
+
+Release-candidate work: `agent/release-candidate-v1`
