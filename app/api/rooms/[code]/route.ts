@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { promotePendingMajorityForLobby } from '@/lib/majority-late-join-service';
 import { parseHostRoomUpdate, updateRoomByHost } from '@/lib/room-service';
 import { pauseRoomByHost, resumeRoomIfPaused } from '@/lib/room-pause-service';
 import { loadRoomSnapshot } from '@/lib/room-snapshot-service';
@@ -37,6 +38,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     }
 
     const room = await updateRoomByHost(code, host.id, update);
+    if (update.status === 'lobby') await promotePendingMajorityForLobby(code, host.id);
     return NextResponse.json({ room });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update room.' }, { status: 400 });
