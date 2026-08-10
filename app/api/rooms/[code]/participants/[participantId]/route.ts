@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { removeModeratedParticipant, setModeratedParticipantRole } from '@/lib/participant-moderation-service';
+import { removeModeratedParticipant, renameModeratedParticipant, setModeratedParticipantRole, unlockModeratedNickname } from '@/lib/participant-moderation-service';
 import { requireUser } from '@/lib/supabase/auth';
 
 export async function PATCH(request: Request, context: { params: Promise<{ code: string; participantId: string }> }) {
@@ -7,14 +7,23 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const user = await requireUser(request);
     if (!user) return NextResponse.json({ error: 'Host authentication is required.' }, { status: 401 });
     const { code, participantId } = await context.params;
-    const body = await request.json() as { role?: 'participant' | 'spectator' };
-    if (body.role !== 'participant' && body.role !== 'spectator') {
-      return NextResponse.json({ error: 'Choose participant or spectator.' }, { status: 400 });
+    const body = await request.json() as { role?: 'participant' | 'spectator'; nickname?: unknown; unlockNickname?: unknown };
+
+    if (body.role === 'participant' || body.role === 'spectator') {
+      const participant = await setModeratedParticipantRole(code, user.id, participantId, body.role);
+      return NextResponse.json({ participant });
     }
-    const participant = await setModeratedParticipantRole(code, user.id, participantId, body.role);
-    return NextResponse.json({ participant });
+    if (typeof body.nickname === 'string') {
+      const participant = await renameModeratedParticipant(code, user.id, participantId, body.nickname);
+      return NextResponse.json({ participant });
+    }
+    if (body.unlockNickname === true) {
+      const participant = await unlockModeratedNickname(code, user.id, participantId);
+      return NextResponse.json({ participant });
+    }
+    return NextResponse.json({ error: 'Choose a supported Host moderation action.' }, { status: 400 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update participant role.' }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not update participant.' }, { status: 400 });
   }
 }
 
