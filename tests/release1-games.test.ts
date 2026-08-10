@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bingoWinnersOnDraw, buildBingoNumberPool, generateBingoCandidates, isAcceptedQuickDrawGuess, majorityResult, quickDrawArtistPoints, quickDrawGuesserPoints } from '../lib/release1-games';
+import { bingoWinnersOnDraw, buildBingoNumberPool, generateBingoCandidates, generatePeopleBingoCandidates, isAcceptedQuickDrawGuess, majorityResult, quickDrawArtistPoints, quickDrawGuesserPoints } from '../lib/release1-games';
 
 describe('Bingo',()=>{
   it('builds the current test-driven pool from board size and multiplier',()=>{
@@ -12,6 +12,25 @@ describe('Bingo',()=>{
     expect(cards).toHaveLength(3);
     expect(cards.every((card)=>card.length===25)).toBe(true);
     expect(cards.every((card)=>new Set(card).size===25)).toBe(true);
+  });
+
+  it('generates People Bingo 5x5 cards with 25 unique identities and no repeats',()=>{
+    const people=Array.from({length:30},(_,index)=>`person-${index+1}`);
+    const cards=generatePeopleBingoCandidates(people,3,5,()=>0.37);
+    expect(cards).toHaveLength(3);
+    expect(cards.every((card)=>card.length===25)).toBe(true);
+    expect(cards.every((card)=>new Set(card).size===25)).toBe(true);
+    expect(cards.every((card)=>card.every((id)=>people.includes(id)))).toBe(true);
+  });
+
+  it('rejects People Bingo 5x5 below the 25-person hard minimum',()=>{
+    const people=Array.from({length:24},(_,index)=>`person-${index+1}`);
+    expect(()=>generatePeopleBingoCandidates(people,3,5)).toThrow(/requires 25 unique participants/i);
+  });
+
+  it('rejects duplicate identities in the People Bingo participant pool',()=>{
+    const people=[...Array.from({length:24},(_,index)=>`person-${index+1}`),'person-1'];
+    expect(()=>generatePeopleBingoCandidates(people,3,5)).toThrow(/unique identities/i);
   });
 
   it('awards simultaneous winners from the same server draw',()=>{
