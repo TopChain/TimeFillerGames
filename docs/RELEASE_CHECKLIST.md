@@ -18,7 +18,9 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0.
 - [x] Spectator role foundation and game-aware audience behavior.
 - [ ] Co-host transfer / Host disconnect recovery.
 - [x] Basic Host seat moderation: move participant ↔ spectator in lobby and remove a participant with confirmation.
-- [ ] Advanced moderation: nickname override/lock, mute/report policy, moderation log and abuse-operational workflow.
+- [x] Host nickname override/lock with Classroom-safe structural validation, duplicate-name disambiguation and unlock control.
+- [x] Host moderation drawer includes a recent server-side audit feed for implemented role/removal/nickname actions.
+- [ ] Mute/report/profanity semantics, moderation-retention policy and abuse-operational workflow.
 
 ## Release 1 games
 ### Bingo
@@ -72,12 +74,14 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0.
 - [x] Signed-in Host magic-link flow and invisible anonymous Player auth foundation.
 - [x] Room-specific authorization for room/game write APIs added to current Release 1 routes.
 - [x] Private room Realtime authorization boundary and heartbeat/reconnect foundation.
-- [x] Host-only seat moderation API for spectator changes and removal.
+- [x] Host-only seat/nickname moderation APIs.
+- [x] Atomic database-backed rate-limit buckets added for high-impact room creation, join, Host room-control and Host moderation writes; Quick Draw retains specialized event flood limits.
+- [ ] Expand throttling/abuse policy if staging/load testing identifies additional write endpoints or different thresholds.
 - [ ] Production/staging Supabase project and secrets configured outside local placeholders.
-- [ ] General API rate limiting / abuse controls beyond Quick Draw's high-risk event limits.
 - [ ] Host disconnect transfer/co-host recovery and forced-close behavior.
 - [ ] Presence/reconnect load tests and stale-seat cleanup under realistic concurrency.
-- [ ] Moderation/audit event storage where required by final policy.
+- [x] Moderation-event storage foundation for implemented Host role/removal/nickname actions.
+- [ ] Transactional audit guarantees, retention rules and any additional event classes required by final moderation policy.
 
 ## Content / policy / legal
 - [ ] Curated Release 1 Majority Match content QA.
