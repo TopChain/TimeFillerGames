@@ -11,12 +11,14 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0.
 - [x] Interactive Host flow: time/context → library → configuration → room → lobby → play → results.
 - [x] Participant identity flow: join → locale → 60-avatar catalog → generated nickname → lobby → play → result.
 - [x] PIN + direct-link join flow.
-- [ ] Replace the current QR placeholder with a production QR code and test camera scanning on iOS/Android.
+- [x] Host lobby generates the direct join QR locally and provides copy-link fallback.
+- [ ] Test QR camera scanning on the supported iPhone/Android device matrix and production/staging origin.
 - [x] Keep-room Replay / Change Game flow after results.
 - [x] Reconnect grace period, heartbeat, anonymous session identity and seat-token recovery foundation.
 - [x] Spectator role foundation and game-aware audience behavior.
 - [ ] Co-host transfer / Host disconnect recovery.
-- [ ] Host participant moderation: remove, rename, mute/lock actions and moderation log.
+- [x] Basic Host seat moderation: move participant ↔ spectator in lobby and remove a participant with confirmation.
+- [ ] Advanced moderation: nickname override/lock, mute/report policy, moderation log and abuse-operational workflow.
 
 ## Release 1 games
 ### Bingo
@@ -46,7 +48,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0.
 - [x] Late joiners can remain out of the current artist sequence while audience/spectator guessing follows room settings.
 - [ ] Replace polling-based drawing updates with the final low-latency transport if device/weak-Wi-Fi testing shows it is required.
 - [ ] Decide fuzzy spelling tolerance from usability/content testing; do not broaden acceptance without evidence.
-- [ ] Server-authoritative pause/resume that freezes and restores active drawing deadlines.
+- [ ] Server-authoritative pause/resume that freezes and restores active drawing deadlines. Implementation is in CI validation.
 - [ ] Full moderation/profanity controls before any public guess stream is enabled.
 
 ## CI / accessibility
@@ -68,6 +70,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0.
 - [x] Signed-in Host magic-link flow and invisible anonymous Player auth foundation.
 - [x] Room-specific authorization for room/game write APIs added to current Release 1 routes.
 - [x] Private room Realtime authorization boundary and heartbeat/reconnect foundation.
+- [x] Host-only seat moderation API for spectator changes and removal.
 - [ ] Production/staging Supabase project and secrets configured outside local placeholders.
 - [ ] General API rate limiting / abuse controls beyond Quick Draw's high-risk event limits.
 - [ ] Host disconnect transfer/co-host recovery and forced-close behavior.
