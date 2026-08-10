@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { HostFlow } from '@/components/host-flow';
 import { PlayerFlow } from '@/components/player-flow';
 import { GAMES, TIME_PRESETS, type TimePreset } from '@/lib/product';
@@ -11,6 +11,11 @@ export default function HomePage() {
   const [mode, setMode] = useState<Mode>('home');
   const [minutes, setMinutes] = useState<TimePreset>(5);
   const compatible = useMemo(() => GAMES.filter((game) => game.times.includes(minutes)), [minutes]);
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get('join') || query.get('room')) setMode('player');
+  }, []);
 
   if (mode === 'host') return <HostFlow onExit={() => setMode('home')} />;
   if (mode === 'player') return <PlayerFlow onExit={() => setMode('home')} />;
@@ -23,7 +28,7 @@ export default function HomePage() {
       </nav>
 
       <section className="hero">
-        <div><div className="kicker">Short games · real connections</div><h1>Make every spare moment playable.</h1><p>Choose how much time your group has, open a room, and launch a ready-made multiplayer game. Participants join from their phones without creating an account.</p><div className="actions"><button className="btn hero-primary" onClick={() => setMode('host')}>Host a Game</button><button className="btn ghost" onClick={() => setMode('player')}>Join With Code</button></div></div>
+        <div><div className="kicker">Short games · real connections</div><h1>Make every spare moment playable.</h1><p>Choose how much time your group has, open a room, and launch a ready-made multiplayer game. Participants join from their phones without creating a visible account.</p><div className="actions"><button className="btn hero-primary" onClick={() => setMode('host')}>Host a Game</button><button className="btn ghost" onClick={() => setMode('player')}>Join With Code</button></div></div>
         <div className="card hero-card"><b>Time-first setup</b><p className="muted">The host chooses 3, 5, 8, or 10 minutes first. Game settings and readiness then adapt to the available time and group size.</p><div className="time-grid" aria-label="Available time">{TIME_PRESETS.map((time) => <button key={time} className={`time ${minutes === time ? 'active' : ''}`} onClick={() => setMinutes(time)}>{time}<small>min</small></button>)}</div></div>
       </section>
 
