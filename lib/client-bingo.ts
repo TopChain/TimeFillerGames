@@ -12,7 +12,7 @@ export type BingoSnapshot = {
   room: { joinCode: string; status: string };
   session: {
     id: string;
-    status: 'active' | 'ended';
+    status: 'active' | 'paused' | 'ended';
     config: {
       mode: 'standard-number';
       boardSize: number;
@@ -27,6 +27,7 @@ export type BingoSnapshot = {
       drawn: number[];
       latestDraw: number | null;
       selectionDeadline: string;
+      pauseStartedAt?: string | null;
     };
     cardSelection: { selected: number; total: number };
     winners: BingoWinner[];
