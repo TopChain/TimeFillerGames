@@ -2,8 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { fetchBingo, type BingoSnapshot } from '@/lib/client-bingo';
+import { fetchLatestBingoMode } from '@/lib/client-people-bingo';
+import { PeopleBingoResultsPanel } from './people-bingo-results-panel';
 
 export function BingoResultsPanel({ accessToken, roomCode, participantId }: { accessToken: string; roomCode: string; participantId?: string | null }) {
+  const [mode, setMode] = useState<'standard-number' | 'people' | null>(null);
+  const [modeError, setModeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchLatestBingoMode(accessToken, roomCode)
+      .then((result) => { if (!cancelled) setMode(result.mode); })
+      .catch((cause) => { if (!cancelled) setModeError(cause instanceof Error ? cause.message : 'Could not identify Bingo result mode.'); });
+    return () => { cancelled = true; };
+  }, [accessToken, roomCode]);
+
+  if (mode === 'people') return <PeopleBingoResultsPanel accessToken={accessToken} roomCode={roomCode} participantId={participantId} />;
+  if (mode === 'standard-number') return <StandardBingoResultsPanel accessToken={accessToken} roomCode={roomCode} participantId={participantId} />;
+  return modeError ? <div className="notice warning" role="alert">{modeError}</div> : <div className="notice">Loading Bingo result mode…</div>;
+}
+
+function StandardBingoResultsPanel({ accessToken, roomCode, participantId }: { accessToken: string; roomCode: string; participantId?: string | null }) {
   const [snapshot, setSnapshot] = useState<BingoSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,20 +39,11 @@ export function BingoResultsPanel({ accessToken, roomCode, participantId }: { ac
 
   const winners = snapshot.session.winners;
   const own = participantId ? winners.find((winner) => winner.participant_id === participantId) : null;
-
   return <div className="bingo-results">
-    {participantId && <div className="private-result">
-      <span>Your private result</span>
-      <strong>{own ? `#${own.placement}` : 'No winning line'}</strong>
-      <small>{own ? `Completed on server draw ${own.completing_draw_index + 1}. Players completing on the same draw share placement.` : 'The server did not record a winning line for this card before the Host ended the round.'}</small>
-    </div>}
-
+    {participantId && <div className="private-result"><span>Your private result</span><strong>{own ? `#${own.placement}` : 'No winning line'}</strong><small>{own ? `Completed on server draw ${own.completing_draw_index + 1}. Players completing on the same draw share placement.` : 'The server did not record a winning line for this card before the Host ended the round.'}</small></div>}
     <div className="winner-list">
       {winners.length === 0 && <div className="notice">No winning line was recorded before the Host ended the round.</div>}
-      {winners.map((winner) => <div className="control-row" key={winner.participant_id}>
-        <span>#{winner.placement} {winner.nickname}</span>
-        <strong>Draw {winner.completing_draw_index + 1}</strong>
-      </div>)}
+      {winners.map((winner) => <div className="control-row" key={winner.participant_id}><span>#{winner.placement} {winner.nickname}</span><strong>Draw {winner.completing_draw_index + 1}</strong></div>)}
     </div>
   </div>;
 }
