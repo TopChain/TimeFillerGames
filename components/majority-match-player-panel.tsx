@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchMajorityMatch, submitMajorityVoteClient, type MajoritySnapshot } from '@/lib/client-majority-match';
+import { MAJORITY_UI_COPY } from '@/lib/majority-ui-copy';
+import { usePlayerUiLocale } from '@/lib/use-player-ui-locale';
 
 export function MajorityMatchPlayerPanel({ accessToken, roomCode }: { accessToken: string; roomCode: string }) {
+  const locale = usePlayerUiLocale(accessToken, roomCode);
+  const copy = MAJORITY_UI_COPY[locale];
   const [snapshot, setSnapshot] = useState<MajoritySnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,40 +49,40 @@ export function MajorityMatchPlayerPanel({ accessToken, roomCode }: { accessToke
     }
   }
 
-  if (!snapshot) return <section className="panel"><div className="eyebrow">Majority Match</div><h2>Waiting for the live question.</h2>{error && <div className="notice warning">{error}</div>}</section>;
+  if (!snapshot) return <section className="panel"><div className="eyebrow">{copy.title}</div><h2>{copy.waitingQuestion}</h2>{error && <div className="notice warning">{error}</div>}</section>;
 
   const { session } = snapshot;
   const paused = snapshot.room.status === 'paused' || session.status === 'paused';
   const spectator = session.ownResult === null;
   const questionNumber = session.state.roundIndex + 1;
 
-  if (session.state.phase === 'ended') return <section className="panel"><div className="eyebrow">Majority Match</div><h2>Round complete.</h2><p className="support">The Host is reviewing results.</p></section>;
+  if (session.state.phase === 'ended') return <section className="panel"><div className="eyebrow">{copy.title}</div><h2>{copy.roundComplete}</h2><p className="support">{copy.waitingHost}</p></section>;
 
   if (session.state.phase === 'answering') {
     const locked = Boolean(session.ownChoice);
     return <section className="panel majority-live-panel player-majority">
-      <div className="live-line"><span className="live-dot" /> {paused ? `PAUSED · QUESTION ${questionNumber}/${session.config.questionCount}` : spectator ? `SPECTATING · QUESTION ${questionNumber}/${session.config.questionCount}` : `QUESTION ${questionNumber}/${session.config.questionCount}`}</div>
-      {paused && <div className="notice warning">The Host paused the room. Voting is frozen and will resume with the same remaining time.</div>}
-      {spectator && <div className="notice">This seat is currently spectating. If you joined late and an active seat is available, the server will activate you at the next question boundary; Host-designated spectators stay spectators.</div>}
-      <div className="bingo-callout"><strong>{remaining}s</strong><span>{paused ? 'answer time frozen' : spectator ? 'watch this question' : 'Choose what you think the room will choose'}</span></div>
+      <div className="live-line"><span className="live-dot" /> {paused ? `${copy.paused} · ${copy.question} ${questionNumber}/${session.config.questionCount}` : spectator ? `${copy.spectator} · ${copy.question} ${questionNumber}/${session.config.questionCount}` : `${copy.question} ${questionNumber}/${session.config.questionCount}`}</div>
+      {paused && <div className="notice warning">{copy.pauseVoting}</div>}
+      {spectator && <div className="notice">{copy.spectatorWaiting}</div>}
+      <div className="bingo-callout"><strong>{remaining}s</strong><span>{paused ? copy.frozen : spectator ? copy.watchQuestion : copy.choosePrediction}</span></div>
       <h2>{session.state.currentQuestion.prompt}</h2>
       {error && <div className="notice warning" role="alert">{error}</div>}
-      <div className="choice-grid">{session.state.currentQuestion.choices.map((choice) => <button className={`choice-card ${session.ownChoice === choice ? 'selected' : ''}`} key={choice} disabled={busy || locked || paused || spectator || remaining <= 0} onClick={() => void vote(choice)}><strong>{choice}</strong>{session.ownChoice === choice && <span>✓ Locked</span>}</button>)}</div>
-      <div className="notice">There is no objectively correct answer and no speed bonus. Predict the group majority.</div>
+      <div className="choice-grid">{session.state.currentQuestion.choices.map((choice) => <button className={`choice-card ${session.ownChoice === choice ? 'selected' : ''}`} key={choice} disabled={busy || locked || paused || spectator || remaining <= 0} onClick={() => void vote(choice)}><strong>{choice}</strong>{session.ownChoice === choice && <span>✓ {copy.locked}</span>}</button>)}</div>
+      <div className="notice">{copy.ruleHelp}</div>
     </section>;
   }
 
   const reveal = session.state.reveal;
   const scored = Boolean(session.ownChoice && reveal?.majorityChoices.includes(session.ownChoice));
   return <section className="panel majority-live-panel player-majority">
-    <div className="eyebrow">Room result</div><h2>{session.state.currentQuestion.prompt}</h2>
-    {paused && <div className="notice warning">The Host paused the room before the next question.</div>}
-    {spectator && <div className="notice">You are spectating this result. A queued late-join seat is activated before the next question when capacity permits.</div>}
+    <div className="eyebrow">{copy.roomResult}</div><h2>{session.state.currentQuestion.prompt}</h2>
+    {paused && <div className="notice warning">{copy.pausedBeforeNext}</div>}
+    {spectator && <div className="notice">{copy.spectatorResult}</div>}
     {reveal && <div className="majority-results">{session.state.currentQuestion.choices.map((choice) => {
       const isMajority = reveal.majorityChoices.includes(choice);
-      return <div className={`control-row ${isMajority ? 'selected' : ''}`} key={choice}><span>{choice}{session.ownChoice === choice ? ' · Your prediction' : ''}</span><strong>{reveal.counts[choice] ?? 0}{reveal.percentages ? ` · ${reveal.percentages[choice] ?? 0}%` : ''}</strong></div>;
+      return <div className={`control-row ${isMajority ? 'selected' : ''}`} key={choice}><span>{choice}{session.ownChoice === choice ? ` · ${copy.yourPrediction}` : ''}</span><strong>{reveal.counts[choice] ?? 0}{reveal.percentages ? ` · ${reveal.percentages[choice] ?? 0}%` : ''}</strong></div>;
     })}</div>}
-    {!spectator && <div className={`notice ${scored ? 'success' : ''}`}>{scored ? 'Your prediction matched the majority: +1000 points.' : 'Your prediction did not match the majority this question.'}</div>}
-    <p className="support">Waiting for the Host to continue.</p>
+    {!spectator && <div className={`notice ${scored ? 'success' : ''}`}>{scored ? copy.matched : copy.missed}</div>}
+    <p className="support">{copy.waitingHost}</p>
   </section>;
 }
