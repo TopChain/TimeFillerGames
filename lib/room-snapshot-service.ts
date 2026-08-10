@@ -33,7 +33,7 @@ export async function loadRoomSnapshot(roomCodeValue: string, userId: string) {
   if (!isHost && !viewer) throw new Error('You are not a member of this room.');
 
   const { data: allParticipants, error } = await admin.from('participants')
-    .select('id,auth_user_id,nickname,avatar_category,avatar_key,ui_language,role,ready,online,last_seen_at,disconnected_at,left_at,joined_at')
+    .select('id,auth_user_id,nickname,nickname_locked,avatar_category,avatar_key,ui_language,role,ready,online,last_seen_at,disconnected_at,left_at,joined_at')
     .eq('room_id', room.id)
     .is('left_at', null)
     .order('joined_at', { ascending: true });
