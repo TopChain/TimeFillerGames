@@ -31,7 +31,13 @@ export function PeopleBingoPlayerPanel({ accessToken, roomCode, participantId }:
     return () => { window.clearInterval(poll); window.clearInterval(clock); };
   }, [refresh]);
 
-  const remaining = useMemo(() => snapshot ? Math.max(0, Math.ceil((new Date(snapshot.session.state.selectionDeadline).getTime() - now) / 1000)) : 0, [now, snapshot]);
+  const remaining = useMemo(() => {
+    if (!snapshot) return 0;
+    const reference = snapshot.room.status === 'paused' && snapshot.session.state.pauseStartedAt
+      ? new Date(snapshot.session.state.pauseStartedAt).getTime()
+      : now;
+    return Math.max(0, Math.ceil((new Date(snapshot.session.state.selectionDeadline).getTime() - reference) / 1000));
+  }, [now, snapshot]);
 
   async function choose(index: number) {
     setBusy(true); setError(null);
@@ -42,19 +48,21 @@ export function PeopleBingoPlayerPanel({ accessToken, roomCode, participantId }:
 
   if (!snapshot) return <section className="panel"><div className="eyebrow">People Bingo 5×5</div><h2>Waiting for the Host to start.</h2>{error && <div className="notice warning">{error}</div>}</section>;
   const { session } = snapshot;
+  const paused = snapshot.room.status === 'paused' || session.status === 'paused';
   const ownCard = session.ownCard;
-  if (!ownCard) return <section className="panel"><div className="eyebrow">People Bingo 5×5</div><h2>Spectator view</h2><p className="support">This seat does not have an active People Bingo card in the current round.</p></section>;
+  if (!ownCard) return <section className="panel"><div className="eyebrow">People Bingo 5×5</div><h2>Spectator view</h2>{paused && <div className="notice warning">The Host paused the game.</div>}<p className="support">This seat does not have an active People Bingo card in the current round.</p></section>;
 
   if (session.state.phase === 'card-selection' && !ownCard.selected_card) {
     const expired = remaining <= 0;
     return <section className="panel people-bingo-live-panel player-people-bingo">
-      <div className="eyebrow">Choose your People Bingo card</div><h2>{expired ? 'Selection closed' : `${remaining}s remaining`}</h2>
+      <div className="eyebrow">Choose your People Bingo card</div><h2>{paused ? `Paused · ${remaining}s saved` : expired ? 'Selection closed' : `${remaining}s remaining`}</h2>
+      {paused && <div className="notice warning">The Host paused the room. Card selection is frozen and will resume with the same remaining time.</div>}
       <p className="support">Each candidate contains 25 unique active participants. Choose one card; otherwise the server assigns one after timeout.</p>
       {error && <div className="notice warning" role="alert">{error}</div>}
-      <div className="people-candidate-grid">{ownCard.candidate_cards.map((card, index) => <button className="people-candidate-card" key={index} disabled={busy || expired} onClick={() => void choose(index)}>
+      <div className="people-candidate-grid">{ownCard.candidate_cards.map((card, index) => <button className="people-candidate-card" key={index} disabled={busy || expired || paused} onClick={() => void choose(index)}>
         <span className="pill">Card {index + 1}</span>
         <PeopleBingoBoard participantIds={card} directory={session.directory} compact />
-        <strong>{expired ? 'Waiting for assignment…' : `Select card ${index + 1}`}</strong>
+        <strong>{paused ? 'Paused' : expired ? 'Waiting for assignment…' : `Select card ${index + 1}`}</strong>
       </button>)}</div>
     </section>;
   }
@@ -63,7 +71,8 @@ export function PeopleBingoPlayerPanel({ accessToken, roomCode, participantId }:
   const ownWinner = session.winners.find((winner) => winner.participant_id === participantId);
   const latest = session.state.latestDraw ? session.directory[session.state.latestDraw] : null;
   return <section className="panel people-bingo-live-panel player-people-bingo">
-    <div className="live-line"><span className="live-dot" /> {session.state.phase === 'ended' ? 'ROUND ENDED' : 'LIVE PEOPLE BINGO'}</div>
+    <div className="live-line"><span className="live-dot" /> {paused ? 'PAUSED · PEOPLE BINGO' : session.state.phase === 'ended' ? 'ROUND ENDED' : 'LIVE PEOPLE BINGO'}</div>
+    {paused && <div className="notice warning">The Host paused the game. Your board stays locked and no new participant can be drawn until resume.</div>}
     <div className="people-bingo-callout"><span>Latest participant</span><strong>{latest ? `${avatarFor(latest.avatarKey)} ${latest.nickname}` : '—'}</strong></div>
     <PeopleBingoBoard participantIds={card} directory={session.directory} drawn={session.state.drawn} />
     <div className="meta"><span className="pill">Draws {session.state.drawn.length}</span><span className="pill">Automatic marking</span><span className="pill">One line wins</span></div>
