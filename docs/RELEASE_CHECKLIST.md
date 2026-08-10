@@ -36,7 +36,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0.
 - [x] Server question timer, aggregate reveal, optional percentages, scoring and ranking privacy.
 - [x] Host category/question-count configuration and starter engineering question bank.
 - [ ] Curated launch question bank + content QA for Classroom/Friends/Family/Workplace/General.
-- [ ] Implement the Product Plan's default late-join boundary so a late active player enters between questions rather than the current conservative spectator behavior.
+- [x] Default late-join boundary: mid-question joins queue safely as spectators, activate between questions when capacity permits, and last-question joins carry to the next lobby instead of entering final rankings.
 
 ### Quick Draw & Guess
 - [x] Artist rotation fixed at game start; random / join-order selection.
@@ -58,11 +58,13 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0.
 - [x] 44px primary control minimum.
 - [x] People Bingo marked cells include a check indicator instead of color-only state.
 - [x] Automated CI: TypeScript, Release 1 rule tests and Next.js production build.
+- [x] Global keyboard focus-visible, increased-contrast, forced-colors and text-size resilience CSS hardening.
+- [x] Persisted Light / Dark / System appearance control using semantic tokens.
+- [ ] Six approved branded color themes; exact approved theme definitions are not yet encoded in the repository and must not be invented.
 - [ ] Final stopwatch/controller SVG and PWA icons supplied from approved brand asset.
-- [ ] Full keyboard and screen-reader audit.
+- [ ] Full keyboard and screen-reader audit on real browsers/assistive technology.
 - [ ] Text-scaling and contrast audit on all completed screens.
-- [ ] Six approved themes + Light/Dark/System.
-- [ ] Complete all six launch-language strings; several Release 1 game surfaces are still English-only.
+- [ ] Complete all six launch-language interface strings; several Release 1 game surfaces are still English-only.
 
 ## Platform / security
 - [x] Next.js + TypeScript web-first PWA release-candidate architecture.
