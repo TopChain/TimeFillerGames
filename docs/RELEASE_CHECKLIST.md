@@ -48,7 +48,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0.
 - [x] Late joiners can remain out of the current artist sequence while audience/spectator guessing follows room settings.
 - [ ] Replace polling-based drawing updates with the final low-latency transport if device/weak-Wi-Fi testing shows it is required.
 - [ ] Decide fuzzy spelling tolerance from usability/content testing; do not broaden acceptance without evidence.
-- [ ] Server-authoritative pause/resume that freezes and restores active drawing deadlines. Implementation is in CI validation.
+- [x] Server-authoritative pause/resume freezes game writes and restores card/answer/drawing deadlines by the exact paused duration; pause timing rules are covered by CI tests.
 - [ ] Full moderation/profanity controls before any public guess stream is enabled.
 
 ## CI / accessibility
