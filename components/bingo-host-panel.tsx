@@ -23,7 +23,10 @@ export function BingoHostPanel({ accessToken, roomCode, boardSize, cardChoiceSec
 
   const remaining = useMemo(() => {
     if (!snapshot || snapshot.session.state.phase !== 'card-selection') return 0;
-    return Math.max(0, Math.ceil((new Date(snapshot.session.state.selectionDeadline).getTime() - now) / 1000));
+    const reference = snapshot.room.status === 'paused' && snapshot.session.state.pauseStartedAt
+      ? new Date(snapshot.session.state.pauseStartedAt).getTime()
+      : now;
+    return Math.max(0, Math.ceil((new Date(snapshot.session.state.selectionDeadline).getTime() - reference) / 1000));
   }, [now, snapshot]);
 
   async function run(action: () => Promise<BingoSnapshot>) {
@@ -39,18 +42,20 @@ export function BingoHostPanel({ accessToken, roomCode, boardSize, cardChoiceSec
 
   const state = snapshot.session.state;
   const selection = snapshot.session.cardSelection;
+  const paused = snapshot.room.status === 'paused' || snapshot.session.status === 'paused';
   return <section className="panel bingo-live-panel">
-    <div className="live-line"><span className="live-dot" /> BINGO · {state.phase === 'card-selection' ? 'CARD SELECTION' : 'DRAWING'}</div>
+    <div className="live-line"><span className="live-dot" /> {paused ? 'PAUSED · BINGO' : `BINGO · ${state.phase === 'card-selection' ? 'CARD SELECTION' : 'DRAWING'}`}</div>
     {error && <div className="notice warning" role="alert">{error}</div>}
+    {paused && <div className="notice warning">The round is frozen. Card-selection time and server draws resume from this exact state.</div>}
     {state.phase === 'card-selection' ? <>
-      <div className="bingo-callout"><strong>{remaining}s</strong><span>card-selection time remaining</span></div>
+      <div className="bingo-callout"><strong>{remaining}s</strong><span>{paused ? 'card-selection time frozen' : 'card-selection time remaining'}</span></div>
       <div className="meta"><span className="pill">Selected {selection.selected}/{selection.total}</span><span className="pill">3 candidates each</span><span className="pill">Auto-assign at timeout</span></div>
-      <button className="btn primary full-width" disabled={busy || remaining > 0 && selection.selected < selection.total} onClick={() => void run(() => drawNextBingo(accessToken, roomCode))}>{selection.selected === selection.total ? 'All cards locked · Draw Next' : remaining > 0 ? 'Waiting for card selection…' : 'Lock remaining cards · Draw Next'}</button>
+      <button className="btn primary full-width" disabled={busy || paused || remaining > 0 && selection.selected < selection.total} onClick={() => void run(() => drawNextBingo(accessToken, roomCode))}>{paused ? 'Paused' : selection.selected === selection.total ? 'All cards locked · Draw Next' : remaining > 0 ? 'Waiting for card selection…' : 'Lock remaining cards · Draw Next'}</button>
     </> : <>
       <div className="bingo-callout draw"><span>Latest server draw</span><strong>{state.latestDraw ?? '—'}</strong></div>
       <div className="meta"><span className="pill">Draws {state.drawn.length}</span><span className="pill">Pool {state.pool.length}</span><span className="pill">Winners {snapshot.session.winners.length}</span></div>
       {snapshot.session.winners.length > 0 && <div className="winner-list">{snapshot.session.winners.map((winner) => <div className="control-row" key={winner.participant_id}><span>#{winner.placement} {winner.nickname}</span><strong>Draw {winner.completing_draw_index + 1}</strong></div>)}</div>}
-      <button className="btn primary full-width" disabled={busy} onClick={() => void run(() => drawNextBingo(accessToken, roomCode))}>{busy ? 'Drawing…' : 'Draw Next'}</button>
+      <button className="btn primary full-width" disabled={busy || paused} onClick={() => void run(() => drawNextBingo(accessToken, roomCode))}>{paused ? 'Paused' : busy ? 'Drawing…' : 'Draw Next'}</button>
     </>}
     <button className="btn danger full-width" disabled={busy} onClick={() => void run(async () => { const result = await endBingo(accessToken, roomCode); onEnded?.(); return result; })}>End Bingo & show results</button>
   </section>;
