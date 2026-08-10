@@ -47,7 +47,7 @@ async function writeModerationEvent(input: {
     action: input.action,
     details: input.details ?? {},
   });
-  if (error) throw new Error(error.message);
+  if (error) console.error('Moderation audit write failed', { action: input.action, roomId: input.roomId, participantId: input.participantId ?? null, message: error.message });
 }
 
 export async function setModeratedParticipantRole(roomCodeValue: string, hostUserId: string, participantId: string, role: ModerationRole) {
