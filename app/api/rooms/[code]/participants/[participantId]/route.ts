@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { removeModeratedParticipant, renameModeratedParticipant, setModeratedParticipantRole, unlockModeratedNickname } from '@/lib/participant-moderation-service';
+import { consumeServerRateLimit } from '@/lib/rate-limit-service';
 import { requireUser } from '@/lib/supabase/auth';
 
 export async function PATCH(request: Request, context: { params: Promise<{ code: string; participantId: string }> }) {
@@ -7,6 +8,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const user = await requireUser(request);
     if (!user) return NextResponse.json({ error: 'Host authentication is required.' }, { status: 401 });
     const { code, participantId } = await context.params;
+    await consumeServerRateLimit({ scope: 'host-moderation', identity: user.id, resource: code, limit: 60, windowSeconds: 60, message: 'Too many moderation actions. Wait briefly and try again.' });
     const body = await request.json() as { role?: 'participant' | 'spectator'; nickname?: unknown; unlockNickname?: unknown };
 
     if (body.role === 'participant' || body.role === 'spectator') {
@@ -32,6 +34,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ code
     const user = await requireUser(request);
     if (!user) return NextResponse.json({ error: 'Host authentication is required.' }, { status: 401 });
     const { code, participantId } = await context.params;
+    await consumeServerRateLimit({ scope: 'host-moderation', identity: user.id, resource: code, limit: 60, windowSeconds: 60, message: 'Too many moderation actions. Wait briefly and try again.' });
     const result = await removeModeratedParticipant(code, user.id, participantId);
     return NextResponse.json(result);
   } catch (error) {
