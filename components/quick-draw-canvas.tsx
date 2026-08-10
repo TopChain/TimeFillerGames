@@ -89,9 +89,16 @@ export function QuickDrawCanvas({ strokes, editable = false, disabled = false, o
 
   async function clearCanvas() {
     if (!editable || disabled || !onClear) return;
+    // Finish the current local stroke first, then serialize Clear behind all queued chunks.
+    // This prevents a slow in-flight stroke from arriving after Clear and reappearing on other devices.
+    if (drawingRef.current) {
+      drawingRef.current = false;
+      flushBuffer(false);
+    }
     setDraft([]);
     bufferRef.current = [];
-    await onClear();
+    queueRef.current = queueRef.current.then(() => onClear()).catch(() => undefined);
+    await queueRef.current;
   }
 
   return <div className="quick-draw-canvas-wrap">
