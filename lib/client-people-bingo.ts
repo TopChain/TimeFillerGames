@@ -6,7 +6,7 @@ export type PeopleBingoSnapshot = {
   room: { joinCode: string; status: string };
   session: {
     id: string;
-    status: 'active' | 'ended';
+    status: 'active' | 'paused' | 'ended';
     config: {
       mode: 'people';
       boardSize: 5;
@@ -21,6 +21,7 @@ export type PeopleBingoSnapshot = {
       drawn: string[];
       latestDraw: string | null;
       selectionDeadline: string;
+      pauseStartedAt?: string | null;
     };
     selection: { selected: number; total: number };
     directory: Record<string, PeopleDirectoryEntry>;
