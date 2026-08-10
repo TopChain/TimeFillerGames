@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LOCALES, type Locale } from '@/lib/product';
 import { STRINGS } from '@/lib/i18n';
 import { AVATARS, disambiguateNickname, generateNickname, getGame, nicknameIssue, normalizeRoomCode, type Avatar } from '@/lib/room-flow';
-import { fetchRoomSnapshot, heartbeatRoom, joinLiveRoom, leaveLiveRoom, reconnectLiveRoom, type LiveRoom, type ParticipantSession, type RoomSnapshot } from '@/lib/client-room';
+import { fetchRoomSnapshot, heartbeatRoom, joinLiveRoom, leaveLiveRoom, reconnectLiveRoom, setReadyState, type LiveRoom, type ParticipantSession, type RoomSnapshot } from '@/lib/client-room';
 import { currentSession, ensureParticipantSession, hasBrowserSupabaseConfig } from '@/lib/supabase/browser';
 import { subscribeToRoom } from '@/lib/realtime-client';
 
@@ -54,10 +54,15 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
       const next = await fetchRoomSnapshot(accessToken, room.join_code);
       setSnapshot(next);
       setRoom(next.room);
+      const own = next.participants.find((candidate) => candidate.id === participant?.id);
+      if (own) {
+        setReady(Boolean(own.ready));
+        setParticipant((current) => current ? { ...current, ...own, session_token: current.session_token } : current);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not refresh room state.');
     }
-  }, [accessToken, room]);
+  }, [accessToken, participant?.id, room]);
 
   useEffect(() => {
     if (!room || !participant || !accessToken || !authUserId || room.status === 'closed') return;
@@ -96,7 +101,7 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
     if (room.status === 'playing' || room.status === 'paused') setStep(4);
     if (room.status === 'results') setStep(5);
     if (room.status === 'closed') setError('The Host ended this room.');
-  }, [room?.status]);
+  }, [room?.status, step]);
 
   function selectAvatar(avatar: Avatar) {
     setAvatarId(avatar.id);
@@ -105,8 +110,7 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
 
   function applyRecoveredIdentity(recoveredRoom: LiveRoom, recovered: ParticipantSession, token: string, userId: string) {
     setRoom(recoveredRoom); setParticipant(recovered); setAccessToken(token); setAuthUserId(userId);
-    setLocale(recovered.ui_language);
-    setNickname(recovered.nickname);
+    setLocale(recovered.ui_language); setNickname(recovered.nickname); setReady(Boolean(recovered.ready));
     if (recovered.avatar_key && AVATARS.some((avatar) => avatar.id === recovered.avatar_key)) {
       setAvatarId(recovered.avatar_key);
       setCategory(AVATARS.find((avatar) => avatar.id === recovered.avatar_key)!.category);
@@ -141,9 +145,22 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
       const session = await ensureParticipantSession();
       const result = await joinLiveRoom(session.access_token, normalizedCode, { uiLanguage: locale, avatarId, nickname });
       window.localStorage.setItem(seatStorageKey(result.room.join_code), result.participant.session_token);
-      applyRecoveredIdentity(result.room, result.participant, session.access_token, session.user.id);
+      applyRecoveredIdentity(result.room, { ...result.participant, ready: Boolean(result.participant.ready) }, session.access_token, session.user.id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not join room.');
+    } finally { setBusy(false); }
+  }
+
+  async function toggleReady() {
+    if (!room || !participant || !accessToken || participant.role !== 'participant') return;
+    setBusy(true); setError(null);
+    try {
+      const result = await setReadyState(accessToken, room.join_code, participant.session_token, !ready);
+      setParticipant(result.participant);
+      setReady(result.participant.ready);
+      await refreshSnapshot();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not update Ready state.');
     } finally { setBusy(false); }
   }
 
@@ -185,14 +202,14 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
 
       {step === 3 && room && participant && <section className="workspace player-card narrow waiting-stage">
         <div className="avatar-hero">{selectedAvatar.emoji}</div><div className="eyebrow">{copy.joinedAs}</div><h1>{participant.nickname}</h1><div className="waiting-pulse" aria-hidden="true" /><h2>{copy.waiting}</h2><p className="support">{copy.waitingDetail}</p>
-        <div className="lobby-summary"><div><span>{copy.roomCode}</span><strong>{room.join_code}</strong></div><div><span>{copy.playerCount}</span><strong>{snapshot?.counts.online ?? 1}</strong></div><div><span>{copy.gamePreview}</span><strong>{game?.name ?? room.game_type} · {room.duration_minutes} min</strong></div></div>
+        <div className="lobby-summary"><div><span>{copy.roomCode}</span><strong>{room.join_code}</strong></div><div><span>{copy.playerCount}</span><strong>{snapshot?.counts.online ?? 1}</strong></div><div><span>Ready</span><strong>{snapshot?.counts.ready ?? 0}/{snapshot?.counts.active ?? 0}</strong></div><div><span>{copy.gamePreview}</span><strong>{game?.name ?? room.game_type} · {room.duration_minutes} min</strong></div></div>
         {participant.role === 'spectator' && <div className="notice warning">You joined as a spectator because the active-player cap was reached or the round is already in progress.</div>}
-        <button className={`btn ${ready ? 'secondary' : 'primary'} full-width`} onClick={() => setReady(!ready)}>{ready ? `✓ ${copy.ready}` : copy.ready}</button>
+        {participant.role === 'participant' && <button className={`btn ${ready ? 'secondary' : 'primary'} full-width`} disabled={busy} onClick={() => void toggleReady()}>{busy ? 'Updating…' : ready ? `✓ ${copy.ready}` : copy.ready}</button>}
         <button className="text-button centered" onClick={() => setStep(2)}>{copy.back}</button>
       </section>}
 
       {step === 4 && room && <section className="workspace player-card narrow play-stage player-play">
-        <div className="live-line"><span className="live-dot" /> {room.status === 'paused' ? 'PAUSED' : 'LIVE'} · {game?.name ?? room.game_type}</div><div className="eyebrow">Rules</div><h1>{room.status === 'paused' ? 'Waiting for Host.' : 'Round in progress.'}</h1><p className="support">The room transition is now live and server-controlled. The game-specific Release 1 interaction surface is the next engine milestone.</p>
+        <div className="live-line"><span className="live-dot" /> {room.status === 'paused' ? 'PAUSED' : 'LIVE'} · {game?.name ?? room.game_type}</div><div className="eyebrow">Rules</div><h1>{room.status === 'paused' ? 'Waiting for Host.' : 'Round in progress.'}</h1><p className="support">The room transition is live and server-controlled. The game-specific Release 1 interaction surface is the next engine milestone.</p>
         {room.game_type === 'bingo' && <div className="mini-bingo" aria-label="Bingo board shell">{[12,28,31,48,63,5,17,42,50,70,7,19,'★',57,68,1,26,33,46,72,11,20,44,49,66].map((value, index) => <button key={`${value}-${index}`} disabled>{value}</button>)}</div>}
         <div className="notice">Authoritative draws, accepted answers, scores, ties, and rankings are never taken from this browser.</div>
       </section>}
