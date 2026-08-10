@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BINGO_UI_COPY } from '@/lib/bingo-ui-copy';
 import { fetchPeopleBingo, selectPeopleBingoCardClient, type PeopleBingoSnapshot } from '@/lib/client-people-bingo';
 import { AVATARS } from '@/lib/room-flow';
+import { usePlayerUiLocale } from '@/lib/use-player-ui-locale';
 import { PeopleBingoBoard } from './people-bingo-board';
 
 function avatarFor(key: string | null) {
@@ -10,6 +12,8 @@ function avatarFor(key: string | null) {
 }
 
 export function PeopleBingoPlayerPanel({ accessToken, roomCode, participantId }: { accessToken: string; roomCode: string; participantId: string }) {
+  const locale = usePlayerUiLocale(accessToken, roomCode);
+  const copy = BINGO_UI_COPY[locale];
   const [snapshot, setSnapshot] = useState<PeopleBingoSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,23 +50,23 @@ export function PeopleBingoPlayerPanel({ accessToken, roomCode, participantId }:
     finally { setBusy(false); }
   }
 
-  if (!snapshot) return <section className="panel"><div className="eyebrow">People Bingo 5×5</div><h2>Waiting for the Host to start.</h2>{error && <div className="notice warning">{error}</div>}</section>;
+  if (!snapshot) return <section className="panel"><div className="eyebrow">{copy.peopleTitle}</div><h2>{copy.waitingStart}</h2>{error && <div className="notice warning">{error}</div>}</section>;
   const { session } = snapshot;
   const paused = snapshot.room.status === 'paused' || session.status === 'paused';
   const ownCard = session.ownCard;
-  if (!ownCard) return <section className="panel"><div className="eyebrow">People Bingo 5×5</div><h2>Spectator view</h2>{paused && <div className="notice warning">The Host paused the game.</div>}<p className="support">This seat does not have an active People Bingo card in the current round.</p></section>;
+  if (!ownCard) return <section className="panel"><div className="eyebrow">{copy.peopleTitle}</div><h2>{copy.spectatorView}</h2>{paused && <div className="notice warning">{copy.paused}</div>}<p className="support">{copy.noActiveCard}</p></section>;
 
   if (session.state.phase === 'card-selection' && !ownCard.selected_card) {
     const expired = remaining <= 0;
     return <section className="panel people-bingo-live-panel player-people-bingo">
-      <div className="eyebrow">Choose your People Bingo card</div><h2>{paused ? `Paused · ${remaining}s saved` : expired ? 'Selection closed' : `${remaining}s remaining`}</h2>
-      {paused && <div className="notice warning">The Host paused the room. Card selection is frozen and will resume with the same remaining time.</div>}
-      <p className="support">Each candidate contains 25 unique active participants. Choose one card; otherwise the server assigns one after timeout.</p>
+      <div className="eyebrow">{copy.chooseCard}</div><h2>{paused ? `${copy.paused} · ${remaining}s ${copy.pausedSaved}` : expired ? copy.selectionClosed : `${remaining}s ${copy.remaining}`}</h2>
+      {paused && <div className="notice warning">{copy.pauseSelection}</div>}
+      <p className="support">{expired ? copy.serverAssigning : copy.peopleChoiceHelp}</p>
       {error && <div className="notice warning" role="alert">{error}</div>}
       <div className="people-candidate-grid">{ownCard.candidate_cards.map((card, index) => <button className="people-candidate-card" key={index} disabled={busy || expired || paused} onClick={() => void choose(index)}>
-        <span className="pill">Card {index + 1}</span>
+        <span className="pill">{copy.card} {index + 1}</span>
         <PeopleBingoBoard participantIds={card} directory={session.directory} compact />
-        <strong>{paused ? 'Paused' : expired ? 'Waiting for assignment…' : `Select card ${index + 1}`}</strong>
+        <strong>{paused ? copy.paused : expired ? copy.waiting : `${copy.select} ${copy.card.toLocaleLowerCase(locale)} ${index + 1}`}</strong>
       </button>)}</div>
     </section>;
   }
@@ -71,12 +75,12 @@ export function PeopleBingoPlayerPanel({ accessToken, roomCode, participantId }:
   const ownWinner = session.winners.find((winner) => winner.participant_id === participantId);
   const latest = session.state.latestDraw ? session.directory[session.state.latestDraw] : null;
   return <section className="panel people-bingo-live-panel player-people-bingo">
-    <div className="live-line"><span className="live-dot" /> {paused ? 'PAUSED · PEOPLE BINGO' : session.state.phase === 'ended' ? 'ROUND ENDED' : 'LIVE PEOPLE BINGO'}</div>
-    {paused && <div className="notice warning">The Host paused the game. Your board stays locked and no new participant can be drawn until resume.</div>}
-    <div className="people-bingo-callout"><span>Latest participant</span><strong>{latest ? `${avatarFor(latest.avatarKey)} ${latest.nickname}` : '—'}</strong></div>
+    <div className="live-line"><span className="live-dot" /> {paused ? `${copy.paused} · ${copy.peopleTitle}` : session.state.phase === 'ended' ? copy.roundEnded : copy.livePeople}</div>
+    {paused && <div className="notice warning">{copy.pauseBoardPeople}</div>}
+    <div className="people-bingo-callout"><span>{copy.latestParticipant}</span><strong>{latest ? `${avatarFor(latest.avatarKey)} ${latest.nickname}` : '—'}</strong></div>
     <PeopleBingoBoard participantIds={card} directory={session.directory} drawn={session.state.drawn} />
-    <div className="meta"><span className="pill">Draws {session.state.drawn.length}</span><span className="pill">Automatic marking</span><span className="pill">One line wins</span></div>
-    {ownWinner && <div className="notice success">You earned shared placement #{ownWinner.placement} on draw {ownWinner.completing_draw_index + 1}.</div>}
-    {session.winners.length > 0 && <div className="winner-list">{session.winners.slice(0, 3).map((winner) => <div className="control-row" key={winner.participant_id}><span>#{winner.placement} {avatarFor(winner.avatarKey)} {winner.nickname}</span><strong>Winner</strong></div>)}</div>}
+    <div className="meta"><span className="pill">{copy.draws} {session.state.drawn.length}</span><span className="pill">{copy.autoMarking}</span><span className="pill">{copy.oneLineWins}</span></div>
+    {ownWinner && <div className="notice success">{copy.sharedPlacement} #{ownWinner.placement} {copy.onDraw} {ownWinner.completing_draw_index + 1}.</div>}
+    {session.winners.length > 0 && <div className="winner-list">{session.winners.slice(0, 3).map((winner) => <div className="control-row" key={winner.participant_id}><span>#{winner.placement} {avatarFor(winner.avatarKey)} {winner.nickname}</span><strong>{copy.winner}</strong></div>)}</div>}
   </section>;
 }
