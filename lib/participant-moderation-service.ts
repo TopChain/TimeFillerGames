@@ -51,7 +51,7 @@ export async function setModeratedParticipantRole(roomCodeValue: string, hostUse
   }
 
   const { data, error } = await admin.from('participants')
-    .update({ role, ready: false, last_seen_at: new Date().toISOString() })
+    .update({ role, ready: false, pending_majority_activation: false, last_seen_at: new Date().toISOString() })
     .eq('room_id', room.id)
     .eq('id', target.id)
     .is('left_at', null)
@@ -67,7 +67,7 @@ export async function removeModeratedParticipant(roomCodeValue: string, hostUser
   const target = await activeTarget(room.id, participantId);
   const now = new Date().toISOString();
   const { error } = await admin.from('participants')
-    .update({ left_at: now, online: false, ready: false, disconnected_at: null, last_seen_at: now })
+    .update({ left_at: now, online: false, ready: false, pending_majority_activation: false, disconnected_at: null, last_seen_at: now })
     .eq('room_id', room.id)
     .eq('id', target.id)
     .is('left_at', null);
