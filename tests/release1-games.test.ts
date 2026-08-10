@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { pauseDurationMs, remainingSecondsAt, shiftIsoDeadline } from '../lib/pause-rules';
 import { bingoWinnersOnDraw, buildBingoNumberPool, generateBingoCandidates, generatePeopleBingoCandidates, isAcceptedQuickDrawGuess, majorityResult, quickDrawArtistPoints, quickDrawGuesserPoints } from '../lib/release1-games';
 
 describe('Bingo',()=>{
@@ -54,4 +55,24 @@ describe('Quick Draw',()=>{
     expect(quickDrawGuesserPoints(0,60000)).toBe(500);
   });
   it('rewards artists by successful eligible guesses',()=>expect(quickDrawArtistPoints(3,4)).toBe(750));
+});
+
+describe('Server-authoritative pause rules',()=>{
+  it('extends a deadline by exactly the paused duration',()=>{
+    const started='2026-08-10T20:00:00.000Z';
+    const resumedAt=new Date(started).getTime()+12_000;
+    const delta=pauseDurationMs(started,resumedAt);
+    expect(delta).toBe(12_000);
+    expect(shiftIsoDeadline('2026-08-10T20:00:30.000Z',delta)).toBe('2026-08-10T20:00:42.000Z');
+  });
+
+  it('freezes the visible remaining time at pause start',()=>{
+    const deadline='2026-08-10T20:00:30.000Z';
+    const paused='2026-08-10T20:00:18.000Z';
+    expect(remainingSecondsAt(deadline,new Date('2026-08-10T20:05:00.000Z').getTime(),paused)).toBe(12);
+  });
+
+  it('never creates a negative pause duration',()=>{
+    expect(pauseDurationMs('2026-08-10T20:00:10.000Z',new Date('2026-08-10T20:00:00.000Z').getTime())).toBe(0);
+  });
 });
