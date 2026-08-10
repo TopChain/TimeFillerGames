@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { majorityLateJoinDisposition } from './majority-late-join-rules';
 import { normalizeRoomCode } from './room-flow';
 import { createAdminClient } from './supabase/admin';
 
@@ -80,8 +81,8 @@ export async function promoteMajorityLateJoin(roomCodeValue: string, authUserId:
   const session = await latestMajoritySession(room.id);
   const state = session?.state as { phase?: unknown; roundIndex?: unknown } | null;
   const config = session?.config as { questionCount?: unknown } | null;
-  const phase = state?.phase;
-  if (!session || (phase !== 'answering' && phase !== 'revealing')) return null;
+  const phase = String(state?.phase ?? '');
+  if (!session) return null;
 
   const { data: participant, error: participantError } = await admin.from('participants')
     .select('id,role,ready')
@@ -94,9 +95,11 @@ export async function promoteMajorityLateJoin(roomCodeValue: string, authUserId:
 
   const roundIndex = Number(state?.roundIndex ?? 0);
   const questionCount = Number(config?.questionCount ?? 0);
-  const hasNextQuestion = Number.isInteger(roundIndex) && Number.isInteger(questionCount) && roundIndex + 1 < questionCount;
   const seats = await availableParticipantSeats(room.id, room.host_cap);
-  if (phase === 'revealing' && hasNextQuestion && seats > 0) {
+  const disposition = majorityLateJoinDisposition({ phase, roundIndex, questionCount, availableSeats: seats });
+  if (disposition === 'ignore') return null;
+
+  if (disposition === 'promote') {
     const { data: promoted, error: updateError } = await admin.from('participants')
       .update({ role: 'participant', ready: false, pending_majority_activation: false, last_seen_at: new Date().toISOString() })
       .eq('id', participant.id)
@@ -129,10 +132,15 @@ export async function promotePendingMajorityLateJoiners(roomCodeValue: string, h
   const session = await latestMajoritySession(room.id);
   const state = session?.state as { phase?: unknown; roundIndex?: unknown } | null;
   const config = session?.config as { questionCount?: unknown } | null;
-  if (!session || state?.phase !== 'revealing') return { promoted: 0 };
-  const roundIndex = Number(state.roundIndex ?? 0);
-  const questionCount = Number(config?.questionCount ?? 0);
-  if (!Number.isInteger(roundIndex) || !Number.isInteger(questionCount) || roundIndex + 1 >= questionCount) return { promoted: 0 };
+  if (!session) return { promoted: 0 };
+  const seats = await availableParticipantSeats(room.id, room.host_cap);
+  const disposition = majorityLateJoinDisposition({
+    phase: String(state?.phase ?? ''),
+    roundIndex: Number(state?.roundIndex ?? 0),
+    questionCount: Number(config?.questionCount ?? 0),
+    availableSeats: seats,
+  });
+  if (disposition !== 'promote') return { promoted: 0 };
 
   return promoteWaiting(room.id, room.host_cap);
 }
