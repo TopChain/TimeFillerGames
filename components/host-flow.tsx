@@ -21,6 +21,7 @@ import { MajorityMatchResultsPanel } from '@/components/majority-match-results-p
 import { QuickDrawHostPanel } from '@/components/quick-draw-host-panel';
 import { QuickDrawResultsPanel } from '@/components/quick-draw-results-panel';
 import { RoomQrCode } from '@/components/room-qr-code';
+import { HostModerationPanel } from '@/components/host-moderation-panel';
 
 const STEPS = ['Choose time', 'Choose game', 'Configure', 'Open room', 'Run game', 'Results'] as const;
 const BINGO_CARD_TIMERS = [10, 15, 20, 30, 60] as const;
@@ -348,5 +349,7 @@ export function HostFlow({ onExit }: { onExit: () => void }) {
     {step === 4 && liveRoom && gameId !== 'bingo' && gameId !== 'majority-match' && gameId !== 'quick-draw' && <section className="workspace two-column"><div className="panel play-stage"><div className="live-line"><span className="live-dot" /> LIVE · {game.name}</div><h1>{liveRoom.status === 'paused' ? 'Game paused' : 'Round in progress'}</h1><p className="support">The room infrastructure is live. This game is scheduled for Release 1.1.</p><div className="demo-board"><span>{minutes}:00</span><strong>{activePlayers} players</strong></div></div><aside className="panel status-panel"><h2>Host controls</h2><button className="btn primary full-width" disabled={busy} onClick={() => void patchRoom({ status: liveRoom.status === 'paused' ? 'playing' : 'paused' })}>{liveRoom.status === 'paused' ? 'Resume' : 'Pause'}</button><button className="btn danger full-width" disabled={busy} onClick={() => void finishGame()}>End game</button></aside></section>}
 
     {step === 5 && liveRoom && <section className="workspace narrow results-stage"><div className="eyebrow">Results</div><h1>Round complete</h1>{gameId === 'bingo' && accessToken ? (bingoMode === 'people' ? <PeopleBingoResultsPanel accessToken={accessToken} roomCode={liveRoom.join_code} /> : <BingoResultsPanel accessToken={accessToken} roomCode={liveRoom.join_code} />) : gameId === 'majority-match' && accessToken ? <MajorityMatchResultsPanel accessToken={accessToken} roomCode={liveRoom.join_code} /> : gameId === 'quick-draw' && accessToken ? <QuickDrawResultsPanel accessToken={accessToken} roomCode={liveRoom.join_code} /> : <div className="notice">Server-backed results for this game arrive with its engine.</div>}<p className="support">Ranking visibility for this room: <strong>{rankingVisibility}</strong>.</p><div className="primary-row"><button className="btn primary" disabled={busy} onClick={() => void replay()}>Replay</button><button className="btn secondary" disabled={busy} onClick={() => void changeGame()}>Change game · keep room</button><button className="btn danger" disabled={busy} onClick={() => void endRoom()}>End room</button></div></section>}
+
+    {liveRoom && accessToken && step >= 3 && <HostModerationPanel accessToken={accessToken} roomCode={liveRoom.join_code} roomStatus={liveRoom.status} participants={snapshot?.participants ?? []} onChanged={refreshSnapshot} />}
   </main>;
 }
