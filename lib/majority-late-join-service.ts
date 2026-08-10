@@ -3,7 +3,7 @@ import 'server-only';
 import { normalizeRoomCode } from './room-flow';
 import { createAdminClient } from './supabase/admin';
 
-async function majorityRoom(roomCodeValue: string) {
+async function roomByCode(roomCodeValue: string) {
   const admin = createAdminClient();
   const roomCode = normalizeRoomCode(roomCodeValue);
   const { data: room, error } = await admin.from('rooms')
@@ -11,6 +11,11 @@ async function majorityRoom(roomCodeValue: string) {
     .eq('join_code', roomCode)
     .maybeSingle();
   if (error) throw new Error(error.message);
+  return room;
+}
+
+async function activeMajorityRoom(roomCodeValue: string) {
+  const room = await roomByCode(roomCodeValue);
   if (!room || room.game_type !== 'majority-match' || !room.allow_late_join || !['playing', 'paused'].includes(room.status)) return null;
   return room;
 }
@@ -18,7 +23,7 @@ async function majorityRoom(roomCodeValue: string) {
 async function latestMajoritySession(roomId: string) {
   const admin = createAdminClient();
   const { data, error } = await admin.from('game_sessions')
-    .select('id,state,status,started_at')
+    .select('id,config,state,status,started_at')
     .eq('room_id', roomId)
     .eq('game_type', 'majority-match')
     .in('status', ['active', 'paused'])
@@ -41,12 +46,41 @@ async function availableParticipantSeats(roomId: string, hostCap: number | null)
   return Math.max(0, hostCap - (count ?? 0));
 }
 
+async function promoteWaiting(roomId: string, hostCap: number | null) {
+  const admin = createAdminClient();
+  const { data: waiting, error: waitingError } = await admin.from('participants')
+    .select('id,joined_at')
+    .eq('room_id', roomId)
+    .eq('role', 'spectator')
+    .eq('pending_majority_activation', true)
+    .is('left_at', null)
+    .order('joined_at', { ascending: true });
+  if (waitingError) throw new Error(waitingError.message);
+  if (!waiting?.length) return { promoted: 0 };
+
+  const seats = await availableParticipantSeats(roomId, hostCap);
+  const promoteIds = waiting.slice(0, Number.isFinite(seats) ? seats : waiting.length).map((participant) => participant.id);
+  if (!promoteIds.length) return { promoted: 0 };
+
+  const { error: updateError } = await admin.from('participants')
+    .update({ role: 'participant', ready: false, pending_majority_activation: false, last_seen_at: new Date().toISOString() })
+    .in('id', promoteIds)
+    .eq('room_id', roomId)
+    .eq('role', 'spectator')
+    .eq('pending_majority_activation', true)
+    .is('left_at', null);
+  if (updateError) throw new Error(updateError.message);
+  return { promoted: promoteIds.length };
+}
+
 export async function promoteMajorityLateJoin(roomCodeValue: string, authUserId: string) {
   const admin = createAdminClient();
-  const room = await majorityRoom(roomCodeValue);
+  const room = await activeMajorityRoom(roomCodeValue);
   if (!room) return null;
   const session = await latestMajoritySession(room.id);
-  const phase = (session?.state as { phase?: unknown } | null)?.phase;
+  const state = session?.state as { phase?: unknown; roundIndex?: unknown } | null;
+  const config = session?.config as { questionCount?: unknown } | null;
+  const phase = state?.phase;
   if (!session || (phase !== 'answering' && phase !== 'revealing')) return null;
 
   const { data: participant, error: participantError } = await admin.from('participants')
@@ -58,8 +92,11 @@ export async function promoteMajorityLateJoin(roomCodeValue: string, authUserId:
   if (participantError) throw new Error(participantError.message);
   if (!participant || participant.role !== 'spectator') return null;
 
+  const roundIndex = Number(state?.roundIndex ?? 0);
+  const questionCount = Number(config?.questionCount ?? 0);
+  const hasNextQuestion = Number.isInteger(roundIndex) && Number.isInteger(questionCount) && roundIndex + 1 < questionCount;
   const seats = await availableParticipantSeats(room.id, room.host_cap);
-  if (phase === 'revealing' && seats > 0) {
+  if (phase === 'revealing' && hasNextQuestion && seats > 0) {
     const { data: promoted, error: updateError } = await admin.from('participants')
       .update({ role: 'participant', ready: false, pending_majority_activation: false, last_seen_at: new Date().toISOString() })
       .eq('id', participant.id)
@@ -85,36 +122,24 @@ export async function promoteMajorityLateJoin(roomCodeValue: string, authUserId:
 }
 
 export async function promotePendingMajorityLateJoiners(roomCodeValue: string, hostUserId: string) {
-  const admin = createAdminClient();
-  const room = await majorityRoom(roomCodeValue);
+  const room = await activeMajorityRoom(roomCodeValue);
   if (!room) return { promoted: 0 };
   if (room.host_user_id !== hostUserId) throw new Error('Only the Host can activate waiting Majority Match players.');
 
   const session = await latestMajoritySession(room.id);
-  const phase = (session?.state as { phase?: unknown } | null)?.phase;
-  if (!session || phase !== 'revealing') return { promoted: 0 };
+  const state = session?.state as { phase?: unknown; roundIndex?: unknown } | null;
+  const config = session?.config as { questionCount?: unknown } | null;
+  if (!session || state?.phase !== 'revealing') return { promoted: 0 };
+  const roundIndex = Number(state.roundIndex ?? 0);
+  const questionCount = Number(config?.questionCount ?? 0);
+  if (!Number.isInteger(roundIndex) || !Number.isInteger(questionCount) || roundIndex + 1 >= questionCount) return { promoted: 0 };
 
-  const { data: waiting, error: waitingError } = await admin.from('participants')
-    .select('id,joined_at')
-    .eq('room_id', room.id)
-    .eq('role', 'spectator')
-    .eq('pending_majority_activation', true)
-    .is('left_at', null)
-    .order('joined_at', { ascending: true });
-  if (waitingError) throw new Error(waitingError.message);
-  if (!waiting?.length) return { promoted: 0 };
+  return promoteWaiting(room.id, room.host_cap);
+}
 
-  const seats = await availableParticipantSeats(room.id, room.host_cap);
-  const promoteIds = waiting.slice(0, Number.isFinite(seats) ? seats : waiting.length).map((participant) => participant.id);
-  if (!promoteIds.length) return { promoted: 0 };
-
-  const { error: updateError } = await admin.from('participants')
-    .update({ role: 'participant', ready: false, pending_majority_activation: false, last_seen_at: new Date().toISOString() })
-    .in('id', promoteIds)
-    .eq('room_id', room.id)
-    .eq('role', 'spectator')
-    .eq('pending_majority_activation', true)
-    .is('left_at', null);
-  if (updateError) throw new Error(updateError.message);
-  return { promoted: promoteIds.length };
+export async function promotePendingMajorityForLobby(roomCodeValue: string, hostUserId: string) {
+  const room = await roomByCode(roomCodeValue);
+  if (!room || room.game_type !== 'majority-match' || room.status !== 'lobby') return { promoted: 0 };
+  if (room.host_user_id !== hostUserId) throw new Error('Only the Host can activate waiting Majority Match players.');
+  return promoteWaiting(room.id, room.host_cap);
 }
