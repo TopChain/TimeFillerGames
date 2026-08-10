@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { promoteMajorityLateJoin } from '@/lib/majority-late-join-service';
 import { joinRoom, parseJoinRoomInput } from '@/lib/room-service';
 import { requireUser } from '@/lib/supabase/auth';
 
@@ -10,7 +11,11 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
     const body = await request.json();
     const input = parseJoinRoomInput({ ...body, roomCode: code });
     const result = await joinRoom(user.id, input);
-    return NextResponse.json(result, { status: 201 });
+    const promoted = await promoteMajorityLateJoin(code, user.id);
+    return NextResponse.json({
+      ...result,
+      participant: promoted ? { ...result.participant, role: promoted.role, ready: promoted.ready } : result.participant,
+    }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not join room.' }, { status: 400 });
   }
