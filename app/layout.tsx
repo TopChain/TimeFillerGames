@@ -3,6 +3,7 @@ import './globals.css';
 import './quick-draw.css';
 import './people-bingo.css';
 import './room-qr.css';
+import './host-moderation.css';
 
 export const metadata: Metadata = {
   title: 'TimeFillerGames — Make every spare moment playable',
