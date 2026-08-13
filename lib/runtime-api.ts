@@ -14,6 +14,18 @@ export function apiUrl(path: string) {
   return `${apiBaseUrl()}${normalized}`;
 }
 
+export function publicAppBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configured) return trimTrailingSlash(configured);
+  if (typeof window !== 'undefined') return trimTrailingSlash(window.location.origin);
+  return '';
+}
+
+export function publicJoinUrl(roomCode: string) {
+  const base = publicAppBaseUrl();
+  return `${base}/?join=${encodeURIComponent(roomCode)}`;
+}
+
 export function isHostedApiMode() {
   return apiBaseUrl().length > 0;
 }
