@@ -11,13 +11,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  android-scaffold:
+  android-native:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - run: npm install --no-audit --no-fund
       - run: npm run mobile:build
         env:
@@ -34,3 +38,6 @@ jobs:
           grep -q 'compileSdkVersion = 36' android/variables.gradle
           grep -q 'targetSdkVersion = 36' android/variables.gradle
           grep -q 'android:scheme="timefillergames"' android/app/src/main/AndroidManifest.xml
+      - name: Compile Android debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
