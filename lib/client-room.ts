@@ -2,6 +2,7 @@
 
 import type { GameId, Locale, TimePreset } from './product';
 import type { GroupContext, RankingVisibility } from './room-flow';
+import { apiUrl } from './runtime-api';
 
 export type LiveRoom = {
   id: string;
@@ -92,7 +93,7 @@ async function requestJson<T>(url: string, init: RequestInit = {}, accessToken?:
   const headers = new Headers(init.headers);
   if (!headers.has('content-type') && init.body) headers.set('content-type', 'application/json');
   if (accessToken) headers.set('authorization', `Bearer ${accessToken}`);
-  const response = await fetch(url, { ...init, headers, cache: 'no-store' });
+  const response = await fetch(apiUrl(url), { ...init, headers, cache: 'no-store' });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = typeof payload?.error === 'string' ? payload.error : `Request failed (${response.status}).`;
