@@ -1,0 +1,29 @@
+name: Native iOS Validation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ios-native:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - run: npm run mobile:build
+        env:
+          VITE_API_BASE_URL: https://api.example.invalid
+          VITE_APP_URL: https://app.example.invalid
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+          VITE_AUTH_REDIRECT_URL: timefillergames://auth/callback
+      - run: npx cap add ios
+      - run: npm run mobile:configure-native
+      - name: Verify iOS camera purpose and auth scheme
+        run: |
+          grep -q 'NSCameraUsageDescription' ios/App/App/Info.plist
+          grep -q '<string>timefillergames</string>' ios/App/App/Info.plist
+      - name: Compile unsigned iOS simulator build
+        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
