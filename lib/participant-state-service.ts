@@ -20,11 +20,11 @@ export async function setParticipantReady(roomCodeValue: string, authUserId: str
     .eq('room_id', room.id)
     .eq('auth_user_id', authUserId)
     .eq('session_token', sessionToken)
-    .eq('role', 'participant')
+    .in('role', ['participant', 'cohost'])
     .is('left_at', null)
     .select('id,session_token,nickname,avatar_category,avatar_key,ui_language,role,ready,online,last_seen_at,disconnected_at')
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!participant) throw new Error('Only an active participant seat can be marked Ready.');
+  if (!participant) throw new Error('Only an active participant or co-host seat can be marked Ready.');
   return participant;
 }
