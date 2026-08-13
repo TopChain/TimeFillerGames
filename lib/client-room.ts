@@ -46,6 +46,16 @@ export type ModerationEvent = {
   created_at: string;
 };
 
+export type HostRecoveryState = {
+  isHost: boolean;
+  isCoHost: boolean;
+  canClaim: boolean;
+  hostLastSeenAt: string;
+  recoveryGraceSeconds: number;
+  transferGeneration: number;
+  cohost: null | { id: string; nickname: string; online: boolean };
+};
+
 export type RoomSnapshot = {
   room: LiveRoom;
   viewer: { isHost: boolean };
@@ -124,6 +134,26 @@ export async function updateLiveRoom(accessToken: string, roomCode: string, inpu
 
 export async function heartbeatRoom(accessToken: string, roomCode: string, sessionToken: string) {
   return requestJson<{ ok: true; serverTime: string }>(`/api/rooms/${encodeURIComponent(roomCode)}/heartbeat`, { method: 'POST', body: JSON.stringify({ sessionToken }) }, accessToken);
+}
+
+export async function heartbeatHostRoom(accessToken: string, roomCode: string) {
+  return requestJson<{ ok: true; serverTime: string }>(`/api/rooms/${encodeURIComponent(roomCode)}/host-heartbeat`, { method: 'POST' }, accessToken);
+}
+
+export async function fetchHostRecoveryState(accessToken: string, roomCode: string) {
+  return requestJson<HostRecoveryState>(`/api/rooms/${encodeURIComponent(roomCode)}/cohost`, { method: 'GET' }, accessToken);
+}
+
+export async function designateRoomCoHost(accessToken: string, roomCode: string, participantId: string) {
+  return requestJson<{ participantId: string; nickname: string; role: 'cohost' }>(`/api/rooms/${encodeURIComponent(roomCode)}/cohost`, { method: 'PATCH', body: JSON.stringify({ participantId }) }, accessToken);
+}
+
+export async function revokeRoomCoHost(accessToken: string, roomCode: string, participantId: string) {
+  return requestJson<{ participantId: string; nickname: string; role: 'participant' }>(`/api/rooms/${encodeURIComponent(roomCode)}/cohost`, { method: 'DELETE', body: JSON.stringify({ participantId }) }, accessToken);
+}
+
+export async function claimRoomHost(accessToken: string, roomCode: string) {
+  return requestJson<{ roomCode: string; paused: boolean; transferGeneration: number }>(`/api/rooms/${encodeURIComponent(roomCode)}/claim-host`, { method: 'POST' }, accessToken);
 }
 
 export async function setReadyState(accessToken: string, roomCode: string, sessionToken: string, ready: boolean) {
