@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { validateRelease1GuessVisibility } from '@/lib/quick-draw-launch-policy';
 import { getQuickDrawState, startQuickDraw } from '@/lib/quick-draw-service';
 import { requireHostUser, requireUser } from '@/lib/supabase/auth';
 
@@ -19,13 +20,14 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
     if (!host) return NextResponse.json({ error: 'A signed-in Host is required to start Quick Draw.' }, { status: 401 });
     const { code } = await context.params;
     const body = await request.json() as Record<string, unknown>;
+    const guessVisibility = validateRelease1GuessVisibility(body.guessVisibility);
     return NextResponse.json(await startQuickDraw(code, host.id, {
       drawingSeconds: body.drawingSeconds,
       artistTurns: body.artistTurns,
       artistSelection: body.artistSelection,
       wordCategory: body.wordCategory,
       wordDifficulty: body.wordDifficulty,
-      guessVisibility: body.guessVisibility,
+      guessVisibility,
       audienceGuessing: body.audienceGuessing,
       timeBonus: body.timeBonus,
     }), { status: 201 });
