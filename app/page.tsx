@@ -3,22 +3,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import { HostFlow } from '@/components/host-flow';
 import { PlayerFlow } from '@/components/player-flow';
+import { RecoveredHostFlow } from '@/components/recovered-host-flow';
 import { GAMES, TIME_PRESETS, type TimePreset } from '@/lib/product';
 
-type Mode = 'home' | 'host' | 'player';
+type Mode = 'home' | 'host' | 'player' | 'recovered-host';
 
 export default function HomePage() {
   const [mode, setMode] = useState<Mode>('home');
+  const [recoveredRoomCode, setRecoveredRoomCode] = useState('');
   const [minutes, setMinutes] = useState<TimePreset>(5);
   const compatible = useMemo(() => GAMES.filter((game) => game.times.includes(minutes)), [minutes]);
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
+    const recovered = (query.get('recoveredHost') ?? '').trim().toUpperCase();
+    if (recovered) {
+      setRecoveredRoomCode(recovered);
+      setMode('recovered-host');
+      return;
+    }
     if (query.get('join') || query.get('room')) setMode('player');
   }, []);
 
+  function exitSpecialFlow() {
+    window.history.replaceState({}, '', '/');
+    setRecoveredRoomCode('');
+    setMode('home');
+  }
+
   if (mode === 'host') return <HostFlow onExit={() => setMode('home')} />;
   if (mode === 'player') return <PlayerFlow onExit={() => setMode('home')} />;
+  if (mode === 'recovered-host' && recoveredRoomCode) return <RecoveredHostFlow roomCode={recoveredRoomCode} onExit={exitSpecialFlow} />;
 
   return (
     <main className="shell">
