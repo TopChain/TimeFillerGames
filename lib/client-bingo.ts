@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from './runtime-api';
+
 export type BingoWinner = {
   participant_id: string;
   completing_draw_index: number;
@@ -44,7 +46,7 @@ async function bingoRequest<T>(url: string, accessToken: string, init: RequestIn
   const headers = new Headers(init.headers);
   headers.set('authorization', `Bearer ${accessToken}`);
   if (init.body) headers.set('content-type', 'application/json');
-  const response = await fetch(url, { ...init, headers, cache: 'no-store' });
+  const response = await fetch(apiUrl(url), { ...init, headers, cache: 'no-store' });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : `Bingo request failed (${response.status}).`);
   return payload as T;
