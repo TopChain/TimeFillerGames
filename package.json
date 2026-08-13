@@ -10,17 +10,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run typecheck && npm run test && npm run build",
-    "mobile:dev": "vite --config mobile/vite.config.ts",
-    "mobile:build": "vite build --config mobile/vite.config.ts",
+    "mobile:dev": "vite --config mobile/build.config.ts",
+    "mobile:build": "vite build --config mobile/build.config.ts",
     "mobile:sync": "npm run mobile:build && cap sync",
     "mobile:add:ios": "cap add ios",
     "mobile:add:android": "cap add android",
     "mobile:ios": "cap open ios",
     "mobile:android": "cap open android"
   },
-  "engines": {
-    "node": ">=20"
-  },
+  "engines": { "node": ">=20" },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
