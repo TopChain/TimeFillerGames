@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 import { AppearanceControl } from '@/components/appearance-control';
+import { CoHostRecoveryAgent } from '@/components/cohost-recovery-agent';
 import './globals.css';
 import './quick-draw.css';
 import './people-bingo.css';
 import './room-qr.css';
 import './host-moderation.css';
+import './cohost-recovery.css';
 import './accessibility.css';
 import './appearance.css';
 
@@ -19,5 +21,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: '#5B5DEE', colorScheme: 'light dark' };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}<AppearanceControl /></body></html>;
+  return <html lang="en"><body>{children}<AppearanceControl /><CoHostRecoveryAgent /></body></html>;
 }
