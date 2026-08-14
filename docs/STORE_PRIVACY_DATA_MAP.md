@@ -54,14 +54,14 @@ This inventory is derived from the current application code and live Supabase sc
 ## Account deletion
 
 - In-app Privacy controls allow an authenticated Host or temporary Player identity to initiate permanent erasure.
-- The deployed JWT-protected Supabase `erase-account` Edge Function closes rooms hosted by the user, removes account-linked moderation events, anonymizes any remaining participant records to `Deleted Player`, marks those seats offline/left, completes the privacy request, and deletes the Supabase Auth identity.
+- The deployed JWT-protected Supabase `erase-account` Edge Function v2 closes rooms hosted by the user, removes account-linked moderation events, anonymizes any remaining participant records to `Deleted Player`, marks those seats offline/left, deletes the Supabase Auth identity, and only then marks the privacy request completed. If the erasure operation fails before Auth deletion, the request is returned to pending where possible rather than falsely reporting completion.
 - The public `/privacy` page provides the external first-party account/data deletion entry point.
-- End-to-end deletion still requires validation against the production-like staged web/native build before submission.
+- End-to-end deletion still requires validation against the production-like deployed web/native build before submission.
 
 ## Third-party processing
 
 - Supabase provides authentication, PostgreSQL persistence, Edge Function execution, and realtime infrastructure for Release 1.
-- The intended Next.js hosting target is Vercel, but the connected Vercel team currently has no project and deployment is not yet configured. Store disclosures must be rechecked after the final hosting project/domain is live.
+- The intended Next.js hosting target is Vercel, but the connected Vercel team currently has no project and deployment is not yet configured. Store disclosures must be rechecked after the final hosting project/origin is live.
 - No advertising SDK or cross-app tracking SDK is implemented in Release 1.
 
 ## Remaining legal/account-owner decisions
