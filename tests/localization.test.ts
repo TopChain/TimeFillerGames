@@ -5,6 +5,7 @@ import { GAME_UI_COPY } from '../lib/game-ui-copy';
 import { HOST_GAME_UI_COPY } from '../lib/host-game-ui-copy';
 import { HOST_UI_COPY } from '../lib/host-ui-copy';
 import { MAJORITY_UI_COPY } from '../lib/majority-ui-copy';
+import { PLAYER_SHELL_UI_COPY } from '../lib/player-shell-ui-copy';
 import { LOCALES, type Locale } from '../lib/product';
 import { RANKING_RESULT_UI_COPY } from '../lib/ranking-result-ui-copy';
 import { SHELL_UI_COPY } from '../lib/shell-ui-copy';
@@ -31,10 +32,11 @@ describe('Release 1 interface localization', () => {
     expect(localeIds).toEqual(['en', 'zh-Hant', 'zh-Hans', 'es', 'ja', 'ko']);
   });
 
-  it.each(localeIds)('has non-empty landing-shell and Host copy for %s', (locale) => {
+  it.each(localeIds)('has non-empty landing, Host, and Player shell copy for %s', (locale) => {
     expectNoBlankStrings(SHELL_UI_COPY[locale]);
     expectNoBlankStrings(HOST_UI_COPY[locale]);
     expectNoBlankStrings(HOST_GAME_UI_COPY[locale]);
+    expectNoBlankStrings(PLAYER_SHELL_UI_COPY[locale]);
   });
 
   it.each(localeIds)('has non-empty Quick Draw interface copy for %s', (locale) => {
