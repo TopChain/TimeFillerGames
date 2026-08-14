@@ -80,8 +80,23 @@ jobs:
             test "$(sips -g hasAlpha "$icon" | awk '/hasAlpha/ {print $2}')" = "no"
           done
           test "$found" = "1"
+      - name: Resolve iOS package dependencies with retry
+        run: |
+          for attempt in 1 2 3; do
+            if xcodebuild \
+              -resolvePackageDependencies \
+              -project ios/App/App.xcodeproj \
+              -scheme App; then
+              exit 0
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo 'Unable to resolve iOS packages after three attempts.' >&2
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
       - name: Compile unsigned iOS simulator build
-        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath "$RUNNER_TEMP/DerivedData" CODE_SIGNING_ALLOWED=NO build
+        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath "$RUNNER_TEMP/DerivedData" -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO build
       - name: Verify simulator privacy manifest is bundled at app root
         run: |
           test -s "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app/PrivacyInfo.xcprivacy"
@@ -93,6 +108,7 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/TimeFillerGames.xcarchive" \
+            -disableAutomaticPackageResolution \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             archive
