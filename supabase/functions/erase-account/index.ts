@@ -13,6 +13,9 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: "Authentication required" }), { status: 401, headers: jsonHeaders });
   }
 
+  const requestBody = await req.json().catch(() => ({})) as { source?: unknown };
+  const requestSource = requestBody.source === "web" ? "web" : "app";
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -52,14 +55,14 @@ Deno.serve(async (req: Request) => {
       requestId = existing.id;
       const { error } = await admin
         .from("privacy_requests")
-        .update({ status: "processing", completed_at: null })
+        .update({ status: "processing", request_source: requestSource, completed_at: null })
         .eq("id", existing.id);
       if (error) throw error;
     } else {
       const { data, error } = await admin.from("privacy_requests").insert({
         auth_user_id: user.id,
         request_kind: "erase_account",
-        request_source: "app",
+        request_source: requestSource,
         status: "processing",
       }).select("id").single();
       if (error || !data) throw error ?? new Error("Could not create privacy request");
