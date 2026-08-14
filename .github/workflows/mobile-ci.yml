@@ -26,3 +26,5 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
           VITE_AUTH_REDIRECT_URL: timefillergames://auth/callback
           VITE_REVIEW_ACCESS_ENABLED: 'true'
+      - name: Verify reusable store reviewer access is bundled
+        run: grep -R -q 'Store review access' mobile/dist
