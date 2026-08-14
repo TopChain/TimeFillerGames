@@ -7,5 +7,9 @@ additional_redirect_urls = ["http://127.0.0.1:3000", "timefillergames://auth/cal
 enable_signup = true
 enable_anonymous_sign_ins = true
 
+[auth.rate_limit]
+anonymous_users = 120
+sign_in_sign_ups = 120
+
 [functions.erase-account]
 verify_jwt = true
