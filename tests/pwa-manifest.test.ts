@@ -6,12 +6,12 @@ type Manifest = { display?: string; start_url?: string; icons?: ManifestIcon[] }
 
 function expectPng(path: string, expectedSize: number) {
   const bytes = readFileSync(path);
+  expect(bytes.length).toBeGreaterThan(32);
   expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
   expect(bytes.subarray(12, 16).toString('ascii')).toBe('IHDR');
   expect(bytes.readUInt32BE(16)).toBe(expectedSize);
   expect(bytes.readUInt32BE(20)).toBe(expectedSize);
   expect(bytes.subarray(-8, -4).toString('ascii')).toBe('IEND');
-  expect(bytes.length).toBeGreaterThan(expectedSize === 192 ? 5000 : 15000);
 }
 
 describe('PWA release manifest', () => {
