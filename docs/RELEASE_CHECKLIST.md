@@ -72,7 +72,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] iOS native validation runs automatically on relevant PR changes; generated project, camera permission, deep link, Release 1 version and unsigned Xcode simulator build all pass on macOS.
 - [x] App-level `PrivacyInfo.xcprivacy` is valid, attached to the generated iOS Xcode App resource phase, and proven by CI to be bundled at the root of the compiled `.app`.
 - [x] Master Release 1 stopwatch/controller SVG and 1024px raster app-icon source derived from approved v1 identity rules; PWA/native packaging no longer uses generic Capacitor branding.
-- [x] PWA manifest includes explicit 192×192 and 512×512 PNG install icons plus the scalable maskable SVG; tests verify manifest entries and PNG signatures.
+- [x] PWA manifest includes explicit 192×192 and 512×512 PNG install icons plus the scalable maskable SVG; tests verify PNG structure and exact dimensions.
 - [x] First-party `/accessibility` page implemented and linked from web/native footer.
 - [x] Six named optional branded themes are explicitly deferred from first store build because v1.0 provides names but not exact palette definitions. Release 1 ships approved Light/Dark/System semantic CI rather than inventing colors.
 - [ ] Full real keyboard/screen-reader/text-scale/contrast audit on supported browsers/devices.
@@ -97,7 +97,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] One-command `npm run release:preflight` combines production env validation, TypeScript/tests/build, and release mobile bundle build.
 - [x] One-command `npm run staging:smoke` verifies health/legal/support/accessibility/account surfaces after an HTTPS deployment exists.
 - [x] Source-control scan found no committed live Supabase project reference, service-role secret, or JWT-like credential pattern.
-- [ ] End-to-end account-erasure validation against staging/native device.
+- [ ] End-to-end account-erasure validation against deployed/native app.
 - [ ] Load/reconnect/stale-seat tests under realistic concurrency.
 
 ## Store packaging / submission preparation
@@ -114,12 +114,12 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [ ] Final legal/account-holder review of Privacy Policy and Terms; governing law/age terms must not be invented by engineering.
 - [ ] Apple Developer account, certificates/signing, App Store Connect/TestFlight setup.
 - [ ] Google Play Console app, Play App Signing/keystore, testing track and signed AAB upload.
-- [ ] Production screenshots captured from the real staged/native product at required store sizes.
+- [ ] Production screenshots captured from the real deployed/native product at required store sizes.
 - [ ] App Store / Play age-rating and target-audience questionnaires completed by the account owner using actual product behavior; Release 1 does not market itself as child-directed.
 
 ## Real-world QA before public release
-- [ ] Staging deployment smoke test + `/api/health` verification.
-- [ ] Apply migrations to a clean staging database and run end-to-end multi-browser rooms.
+- [ ] HTTPS deployment smoke test + `/api/health` verification using the existing Supabase project; a paid Supabase staging branch is not required.
+- [ ] End-to-end multi-browser/device room tests against the deployed environment using isolated temporary test rooms/data.
 - [ ] iPhone + Android + laptop/projector device matrix.
 - [ ] Weak-Wi-Fi / reconnect / Host recovery tests.
 - [ ] People Bingo readability/fairness sessions.
@@ -129,4 +129,4 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [ ] Final production smoke test and rollback plan.
 
 ## Publication gate
-Do not call TimeFillerGames production-ready until the remaining unchecked external deployment, real-device QA, legal/account, signing, beta, screenshot, and store-console items are completed. Code-only Release 1 blockers should be fixed on this branch rather than deferred silently.
+Do not call TimeFillerGames production-ready until the remaining unchecked external deployment, real-device QA, legal/account, signing, beta, screenshot, and store-console items are completed. A paid Supabase staging branch is intentionally not part of the publication requirements. Code-only Release 1 blockers should be fixed on this branch rather than deferred silently.
