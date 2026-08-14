@@ -9,6 +9,7 @@ on:
       - 'scripts/verify-people-bingo-26.mjs'
       - 'scripts/verify-majority-quickdraw-e2e.mjs'
       - 'scripts/verify-host-recovery-e2e.mjs'
+      - 'scripts/verify-retention-e2e.mjs'
       - '.github/workflows/supabase-integration.yml'
       - 'app/api/**'
       - 'lib/**'
@@ -77,6 +78,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           NEXT_PUBLIC_APP_URL="http://127.0.0.1:3000" \
           HOST_RECOVERY_GRACE_SECONDS="2" \
+          CRON_SECRET="local-retention-qa-secret-please-do-not-use-in-production" \
           npm run dev -- --hostname 127.0.0.1 > /tmp/next.log 2>&1 &
           echo $! > /tmp/next.pid
 
@@ -126,6 +128,15 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           APP_BASE_URL="http://127.0.0.1:3000" \
           node scripts/verify-host-recovery-e2e.mjs
+
+      - name: Verify retention authorization and cascade cleanup end to end
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          APP_BASE_URL="http://127.0.0.1:3000" \
+          CRON_SECRET="local-retention-qa-secret-please-do-not-use-in-production" \
+          node scripts/verify-retention-e2e.mjs
 
       - name: Print integration logs on failure
         if: failure()
