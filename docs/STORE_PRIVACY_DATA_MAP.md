@@ -48,11 +48,15 @@ Apple App Privacy / app-level manifest working mapping:
 - Other Diagnostic Data — linked where authentication/security logs contain user ID + IP/user agent; App Functionality/security, not tracking.
 
 Google Play Data Safety working mapping:
-- Personal info: email address for Host authentication/account management.
-- Device or other IDs / Diagnostics: authentication/security request identifiers, IP/user-agent/browser/device-related log data, used for App functionality and Fraud prevention/security/compliance.
-- App activity / Other user-generated content as applicable to multiplayer gameplay, guesses/drawings and room interaction.
-- No ads/tracking purposes.
-- Do **not** declare a location feature merely because an IP address exists. If the final hosting/auth provider is configured to infer/store user location from IP, Google requires the corresponding Approximate Location declaration and the form must be updated before submission.
+- Personal info → Email address: Host authentication/account management.
+- Personal info → User IDs: Supabase Auth UUID / temporary authenticated Player identifier, for App functionality, Account management, and Fraud prevention/security as applicable.
+- Personal info → Name only if the final submission treats user/Host-entered display nicknames as the Google definition of a nickname; generated nicknames alone are not evidence that a real-world name is requested.
+- App activity / Other user-generated content: multiplayer room interaction, Majority predictions, Quick Draw guesses/drawings, and other gameplay submissions needed for App functionality.
+- Diagnostics / security-related operational data: authentication/request logs, failures, user-agent/request metadata and related service-integrity information, for App functionality and Fraud prevention/security/compliance.
+- IP addresses must be disclosed according to actual use. Current TimeFillerGames/Supabase use is authentication security/rate limiting; the app does not use IP to provide a location feature or to create a persistent device identifier.
+- Do **not** select Device or other IDs merely because an IP/user-agent/request ID exists. Select it only if inspection of the final signed binary or final provider/SDK configuration shows an identifier that relates persistently to a device, browser, or app (for example an installation ID, advertising ID, Android ID, or similar identifier).
+- Do **not** declare Approximate Location merely because an IP address exists. If the final hosting/auth configuration actually infers or stores user location from IP, Google requires the corresponding Approximate Location declaration and this map must be updated before submission.
+- No advertising/marketing or cross-app tracking purposes.
 
 ## Camera / device capabilities
 
@@ -75,8 +79,9 @@ Google Play Data Safety working mapping:
 ## Account deletion
 
 - In-app Privacy controls allow an authenticated Host or temporary Player identity to initiate permanent erasure.
-- The deployed JWT-protected Supabase `erase-account` Edge Function v2 closes rooms hosted by the user, removes account-linked moderation events, anonymizes any remaining participant records to `Deleted Player`, marks those seats offline/left, deletes the Supabase Auth identity, and only then marks the privacy request completed. If the erasure operation fails before Auth deletion, the request is returned to pending where possible rather than falsely reporting completion.
-- The public `/privacy` page provides the external first-party account/data deletion entry point.
+- The deployed JWT-protected Supabase `erase-account` Edge Function v3 closes rooms hosted by the user, removes account-linked moderation events, anonymizes any remaining participant records to `Deleted Player`, marks those seats offline/left, deletes the Supabase Auth identity, and only then marks the privacy request completed. If the erasure operation fails before Auth deletion, the request is returned to pending where possible rather than falsely reporting completion.
+- Erasure audit records distinguish `app` and external `web` request sources.
+- The public `/privacy` page provides the external first-party account/data deletion entry point and can send a Host verification link back to that page before deletion.
 - Infrastructure/security records that a provider retains for fraud prevention, security, legal obligations, or platform operation may follow the applicable provider retention policy rather than the room TTL.
 - End-to-end deletion still requires validation against the production-like deployed web/native build before submission.
 
