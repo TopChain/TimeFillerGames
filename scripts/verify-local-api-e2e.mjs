@@ -7,6 +7,22 @@ const appUrl = process.env.APP_BASE_URL ?? 'http://127.0.0.1:3000';
 
 if (!supabaseUrl || !anonKey || !serviceRoleKey) throw new Error('Supabase integration environment is incomplete');
 
+const nativeOrigin = 'capacitor://localhost';
+const nativePreflight = await fetch(`${appUrl}/api/rooms`, {
+  method: 'OPTIONS',
+  headers: { Origin: nativeOrigin, 'Access-Control-Request-Method': 'POST' },
+});
+if (nativePreflight.status !== 204 || nativePreflight.headers.get('access-control-allow-origin') !== nativeOrigin) {
+  throw new Error(`Native Capacitor CORS preflight failed: ${nativePreflight.status} ${nativePreflight.headers.get('access-control-allow-origin')}`);
+}
+const hostilePreflight = await fetch(`${appUrl}/api/rooms`, {
+  method: 'OPTIONS',
+  headers: { Origin: 'https://untrusted.example', 'Access-Control-Request-Method': 'POST' },
+});
+if (hostilePreflight.status !== 403 || hostilePreflight.headers.has('access-control-allow-origin')) {
+  throw new Error('Untrusted origin was not rejected by API CORS policy');
+}
+
 const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
 const email = `host-${Date.now()}@qa.timefillergames.invalid`;
 const password = `Qa-${crypto.randomUUID()}-A1!`;
@@ -102,4 +118,4 @@ await admin.auth.admin.deleteUser(createdHost.user.id);
 await admin.auth.admin.deleteUser((await player1.client.auth.getUser()).data.user?.id ?? '');
 await admin.auth.admin.deleteUser((await player2.client.auth.getUser()).data.user?.id ?? '');
 
-console.log('Local API E2E passed: permanent Host auth, room creation, two anonymous joins, Ready aggregation, snapshot privacy, Bingo candidate selection, server draw, and game end.');
+console.log('Local API E2E passed: strict native CORS, permanent Host auth, room creation, two anonymous joins, Ready aggregation, snapshot privacy, Bingo candidate selection, server draw, and game end.');
