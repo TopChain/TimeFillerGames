@@ -25,6 +25,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Verify Capacitor SDK privacy manifest exists
+        run: |
+          find node_modules/@capacitor -name PrivacyInfo.xcprivacy -type f -print
+          test "$(find node_modules/@capacitor -name PrivacyInfo.xcprivacy -type f | wc -l | tr -d ' ')" -ge 1
       - run: npm run mobile:build
         env:
           VITE_API_BASE_URL: https://api.example.invalid
