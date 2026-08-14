@@ -4,6 +4,7 @@ import path from 'node:path';
 const RELEASE_VERSION = '1.0.0';
 const RELEASE_BUILD = 1;
 const MASTER_ICON = 'assets/native/timefillergames-app-icon-1024.png';
+const PRIVACY_MANIFEST = 'assets/native/PrivacyInfo.xcprivacy';
 
 function updateFile(filePath, transform) {
   if (!fs.existsSync(filePath)) return false;
@@ -89,6 +90,10 @@ updateFile(iosPlist, (text) => {
   return next;
 });
 
+if (fs.existsSync('ios/App/App') && fs.existsSync(PRIVACY_MANIFEST)) {
+  fs.copyFileSync(PRIVACY_MANIFEST, 'ios/App/App/PrivacyInfo.xcprivacy');
+}
+
 const iosProject = 'ios/App/App.xcodeproj/project.pbxproj';
 updateFile(iosProject, (text) => text
   .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${RELEASE_VERSION};`)
@@ -111,4 +116,4 @@ if (fs.existsSync(iosIconContents) && fs.existsSync(MASTER_ICON)) {
   for (const image of namedImages) fs.copyFileSync(MASTER_ICON, path.join(iconDir, image.filename));
 }
 
-console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), vector launcher icon, TimeFillerGames URL scheme, and iOS camera purpose string.`);
+console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), vector launcher icon, TimeFillerGames URL scheme, iOS camera purpose string, and Release 1 privacy manifest source.`);
