@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { currentSession, getBrowserSupabase } from '@/lib/supabase/browser';
+import '@/app/privacy.css';
 
 export function PrivacyControls({ source = 'app' }: { source?: 'app' | 'web' }) {
   const [hasIdentity, setHasIdentity] = useState(false);
