@@ -12,6 +12,12 @@ as $$
 declare
   existing_artist uuid;
 begin
+  -- Serialize truly simultaneous requests for the same session/round. The second
+  -- transaction waits here, then observes the row committed by the first transaction.
+  perform pg_advisory_xact_lock(
+    hashtextextended(new.game_session_id::text || ':' || new.round_index::text, 0)
+  );
+
   select artist_participant_id
     into existing_artist
   from public.quick_draw_rounds
