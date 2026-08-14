@@ -15,7 +15,7 @@ TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 
 
 ## Architecture
 
-- Next.js 15 + React 19 + TypeScript.
+- Next.js 16.3.1 + React 19.2 + TypeScript 5.9.
 - Installable web/PWA plus Capacitor 8 bundled iOS/Android clients.
 - Supabase Auth, PostgreSQL, Realtime and Edge Functions.
 - Server-authoritative Release 1 room/game state.
@@ -83,8 +83,9 @@ TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 
 - Source-ready Vercel Cron configuration calls the authenticated retention endpoint daily.
 - Expired rooms cascade-delete Release 1 gameplay/room-linked moderation data; stale rate-limit buckets older than 24 hours are cleaned up.
 - Dormant Release 1.1 tables (`content_packs`, `player_question_history`, `game_results`) are server-only, RLS-protected and currently unused by the public Release 1 product.
+- iOS Release 1 includes an app-level `PrivacyInfo.xcprivacy` declaration for email address, user ID, gameplay content and product interaction; CI validates the plist and proves it is bundled at the root of the built `.app`.
 
-## Brand / accessibility
+## Brand / accessibility / installability
 
 - Brand Indigo `#5B5DEE`.
 - Play Teal `#22D3C5`.
@@ -95,6 +96,7 @@ TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 
 - Host primary `#5B5DEE`; Player primary `#0F7A86`.
 - Master stopwatch/controller SVG and 1024px raster app-icon source.
 - Android branded vector adaptive launcher.
+- PWA ships explicit 192×192 and 512×512 PNG install icons plus the scalable maskable master SVG; CI regression-tests those manifest entries and PNG signatures.
 - 20px cards, 12–16px controls, 44px minimum primary interaction target.
 - Reduced-motion, visible focus, increased-contrast and forced-colors foundations.
 - First-party Accessibility page.
@@ -103,7 +105,7 @@ The six named optional branded color themes are intentionally deferred from the 
 
 ## Local setup
 
-Requirements: Node.js 20+ (CI currently uses Node 24).
+Requirements: Node.js 20.9+ (CI uses Node 24).
 
 ```bash
 cp .env.example .env.local
@@ -126,6 +128,14 @@ npm run build
 npm run check
 ```
 
+Server CI also runs:
+
+```bash
+npm audit --omit=dev --audit-level=high
+```
+
+The Release 1 dependency graph was upgraded to Next 16.3.1 / React 19.2 so this production high/critical audit gate passes instead of being suppressed.
+
 Production release preflight requires real non-placeholder server + mobile environment variables and then runs server env validation, TypeScript/tests/Next build, mobile env validation and mobile bundle build:
 
 ```bash
@@ -140,16 +150,20 @@ npm run staging:smoke
 
 The staging smoke check verifies the public app, `/api/health`, Privacy Policy, Terms, Account/Data, Support, Accessibility, and that the retention endpoint rejects unauthenticated requests.
 
-## Native validation
+## Automated native / security validation
 
-GitHub Actions automatically validates:
+GitHub Actions use the Node 24 generation of the official actions (`checkout@v6`, `setup-node@v6`, `setup-java@v5`, `upload-artifact@v7`) and automatically validate:
 
-- Web/server TypeScript + tests + Next production build.
-- Mobile Vite/Capacitor bundle.
-- Android: generated native project, min SDK 26, compile/target API 36, HTTPS-only transport, deep link, version 1.0.0 (1), branded vector launcher, debug APK, and Play-format release AAB.
-- iOS: generated native project, camera purpose string, deep-link scheme, version 1.0.0 (1), and unsigned Xcode simulator build.
+- Web/server: deterministic install, high/critical production dependency audit, strict TypeScript, tests and Next production build.
+- Mobile: Vite/Capacitor bundle.
+- Android: generated native project, min SDK 26, compile/target API 36, HTTPS-only transport, deep link, version 1.0.0 (1), branded vector launcher, debug APK, Play-format release AAB and retained AAB artifact.
+- iOS: generated native project, camera purpose string, deep-link scheme, version 1.0.0 (1), valid app privacy manifest, unsigned Xcode simulator build, and verification that `PrivacyInfo.xcprivacy` is bundled at the `.app` root.
 
-The current release branch has passed all four automated build pipelines. Signing and store-account distribution still require the account owner’s Apple/Google credentials.
+The current release candidate has passed the web/server audit/type/test/build, mobile bundle, Android APK/AAB, and iOS Xcode/privacy-manifest gates. Signing and store-account distribution still require the account owner’s Apple/Google credentials.
+
+## Dependency maintenance
+
+`.github/dependabot.yml` opens bounded maintenance PRs for npm dependencies weekly and GitHub Actions monthly. No dependency PR is auto-merged.
 
 ## Current external publication blockers
 
