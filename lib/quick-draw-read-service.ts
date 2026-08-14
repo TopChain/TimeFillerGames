@@ -91,7 +91,25 @@ export async function getQuickDrawReadState(roomCodeValue: string, userId: strin
     .select('sequence,payload')
     .eq('game_session_id', session.id)
     .eq('round_index', session.state.roundIndex);
-  if (deltaMode) strokeQuery = strokeQuery.gt('sequence', readCursor.afterSequence as number);
+
+  if (deltaMode) {
+    strokeQuery = strokeQuery.gt('sequence', readCursor.afterSequence as number);
+  } else {
+    // A full reconnect snapshot only needs the visible canvas from the most recent clear.
+    // Older stroke rows remain in the database for authoritative audit/debugging but are
+    // irrelevant to reconstruction after a clear event.
+    const { data: latestClear, error: clearError } = await admin.from('quick_draw_strokes')
+      .select('sequence')
+      .eq('game_session_id', session.id)
+      .eq('round_index', session.state.roundIndex)
+      .contains('payload', { type: 'clear' })
+      .order('sequence', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (clearError) throw new Error(clearError.message);
+    if (latestClear) strokeQuery = strokeQuery.gte('sequence', latestClear.sequence);
+  }
+
   const { data: strokes, error: strokeError } = await strokeQuery.order('sequence', { ascending: true });
   if (strokeError) throw new Error(strokeError.message);
 
