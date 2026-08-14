@@ -19,12 +19,12 @@ jobs:
   android-native:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -57,7 +57,7 @@ jobs:
         working-directory: android
         run: ./gradlew bundleRelease
       - name: Retain unsigned Play-format AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: timefillergames-android-release-aab
           path: android/app/build/outputs/bundle/release/*.aab
