@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
       'process.env.NEXT_PUBLIC_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
       'process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(env.VITE_SUPABASE_PUBLISHABLE_KEY || ''),
       'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(''),
+      'process.env.NEXT_PUBLIC_REVIEW_ACCESS_ENABLED': JSON.stringify(env.VITE_REVIEW_ACCESS_ENABLED || 'false'),
     },
     build: { outDir: path.resolve(mobileDir, 'dist'), emptyOutDir: true, sourcemap: true },
     server: { port: 4173 },
