@@ -1,6 +1,6 @@
 # TimeFillerGames Release 1 Store Submission Draft
 
-Engineering draft for App Store Connect and Google Play Console. Final URLs, legal text, age/target-audience questionnaires, screenshots and account-holder declarations must be completed before submission.
+Engineering draft for App Store Connect and Google Play Console. Final production URLs, legal/account-holder declarations, age/target-audience questionnaires, screenshots, signing and store-console setup remain required before submission.
 
 ## Product identity
 
@@ -11,10 +11,10 @@ Engineering draft for App Store Connect and Google Play Console. Final URLs, leg
 - Tagline: **Short games. Real connections.**
 - Release 1 modes: Standard Number Bingo, People Bingo 5×5, Majority Match, Quick Draw & Guess.
 - Session presets: 3 / 5 / 8 / 10 minutes.
+- Release 1 participant identity: built-in avatars + generated/editable nicknames; custom participant photos are disabled.
+- Dedicated child-directed Kids context is not exposed in Release 1 pending a separate children/privacy review.
 
 ## Apple App Store draft
-
-Apple currently limits the app name and subtitle to 30 characters, promotional text to 170 characters, description to 4000 characters, and keywords to 100 bytes.
 
 ### Name
 TimeFillerGames
@@ -60,17 +60,26 @@ Games
 Entertainment
 
 ### Support URL
-Required before submission. Point to the final TimeFillerGames support page.
+Production origin + `/support`.
+
+The page is implemented. Before submission it must show a real support contact owned by the account holder/company.
 
 ### Privacy Policy URL
-Required before submission. Point to the reviewed public Privacy Policy.
+Production origin + `/privacy-policy`.
+
+The page is implemented. Final legal/account-holder review remains required before public submission.
 
 ### Accessibility URL
-Recommended once the final accessibility/support page is published.
+Production origin + `/accessibility`.
+
+The first-party accessibility page is implemented and linked from the web/native footer. Final real-device validation results must remain consistent with its claims.
+
+### Account/data URL
+Production origin + `/privacy`.
+
+The page is implemented and provides the external web entry point for account/data deletion.
 
 ## Google Play draft
-
-Google Play currently limits the app name to 30 characters, short description to 80 characters, and full description to 4000 characters.
 
 ### App name
 TimeFillerGames
@@ -130,14 +139,20 @@ These answers must remain synchronized with `docs/STORE_PRIVACY_DATA_MAP.md` and
 No sale of personal data and no advertising-data sharing is implemented. Supabase and the hosting provider process data as service providers/subprocessors to operate authentication, database, realtime, and application infrastructure.
 
 ### Encryption
-Production network traffic must use HTTPS/TLS. Android release validation must keep cleartext HTTP disabled before signing.
+Production network traffic must use HTTPS/TLS. Android release validation keeps cleartext HTTP disabled before signing.
 
 ### Account deletion
-Hard release gate. Apple requires in-app initiation for accounts created by the app, including automatically generated guest accounts. Google Play requires an in-app account-deletion path and an external web deletion/request path when account creation is supported. Do not submit until both Host and temporary Player identity deletion flows are implemented and tested.
+Implemented in Release 1 code:
+- in-app Privacy control for permanent Host and temporary Player authenticated identities;
+- authenticated Supabase Edge Function that performs account/data erasure;
+- external first-party `/privacy` account/data page;
+- public Privacy Policy and Support routes.
+
+Remaining gate: validate the full deletion flow against the production/staging HTTPS deployment and real native devices before submission.
 
 ## Screenshot storyboard
 
-Create real-device screenshots only after the staging backend and final visual assets are connected. Suggested sequence:
+Create real-device screenshots only after the production-like staging backend, support contact and final deployment origin are connected. Suggested sequence:
 1. Home — “Make every spare moment playable.”
 2. Time-first setup — 3 / 5 / 8 / 10 minutes.
 3. Host lobby — room code + QR + readiness.
@@ -145,18 +160,34 @@ Create real-device screenshots only after the staging backend and final visual a
 5. Majority Match — private prediction / aggregate reveal.
 6. Quick Draw — drawing canvas and guess interaction.
 7. Results — public podium + private result.
-8. Player identity — avatar/language/nickname flow.
+8. Player identity — language/avatar/nickname flow.
 
-Apple accepts 1–10 screenshots per supported device class; prepare the highest required iPhone resolution plus any separate iPad set if iPad distribution remains enabled.
+## Implemented submission assets / surfaces
 
-## Submission blockers that metadata cannot solve
+- First-party master stopwatch/controller SVG.
+- 1024px raster app-icon source for store/native packaging.
+- Android branded adaptive-vector launcher configuration.
+- PWA manifest and Apple touch icon.
+- `/privacy-policy`.
+- `/terms`.
+- `/privacy` account/data page.
+- `/support`.
+- `/accessibility`.
+- Native/web legal-support footer linking these first-party pages.
+- Strict server/mobile production-environment validators.
+- One-command `npm run release:preflight`.
+- One-command `npm run staging:smoke` once a real HTTPS deployment exists.
 
-- Production/staging HTTPS backend and domain.
+## Remaining blockers that metadata cannot solve
+
+- Production/staging HTTPS deployment and domain.
 - Production environment secrets configured outside Git.
-- Final Privacy Policy / Terms / support pages.
-- Account-deletion implementation and web path.
-- Real-device accessibility and network/reconnect QA.
-- Final approved store icon / stopwatch-controller brand asset.
-- iOS signing, App Store Connect record, TestFlight validation.
-- Android Play Console record, signing key, testing-track requirements.
-- Age rating / target audience questionnaires and final legal review.
+- Real support email/contact identity on the production Support page and store records.
+- Final Privacy Policy / Terms legal/account-holder acceptance.
+- End-to-end account-erasure validation on staged/native builds.
+- Real-device accessibility, QR, network/reconnect, People Bingo readability/fairness and Quick Draw synchronization QA.
+- iOS signing, Apple Developer/App Store Connect/TestFlight setup.
+- Android Play Console record, Play App Signing/keystore and testing track.
+- Production screenshots captured from the real staged/native product.
+- Age-rating / target-audience questionnaires completed using actual Release 1 behavior.
+- Closed beta and final 3 / 5 / 8 / 10-minute pacing validation.
