@@ -82,7 +82,26 @@ jobs:
           test "$found" = "1"
       - name: Compile unsigned iOS simulator build
         run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath "$RUNNER_TEMP/DerivedData" CODE_SIGNING_ALLOWED=NO build
-      - name: Verify privacy manifest is bundled at app root
+      - name: Verify simulator privacy manifest is bundled at app root
         run: |
           test -s "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app/PrivacyInfo.xcprivacy"
           plutil -lint "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app/PrivacyInfo.xcprivacy"
+      - name: Compile unsigned App Store-style iOS device archive
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/TimeFillerGames.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            archive
+      - name: Verify device archive app and privacy manifest
+        run: |
+          app="$RUNNER_TEMP/TimeFillerGames.xcarchive/Products/Applications/App.app"
+          test -d "$app"
+          test -s "$app/PrivacyInfo.xcprivacy"
+          plutil -lint "$app/PrivacyInfo.xcprivacy"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" = "com.timefillergames.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = "1.0.0"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = "1"
