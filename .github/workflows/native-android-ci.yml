@@ -9,6 +9,7 @@ on:
       - 'package-lock.json'
       - 'capacitor.config.json'
       - 'scripts/configure-native.mjs'
+      - 'scripts/configure-native-release.mjs'
       - '.github/workflows/native-android-ci.yml'
   workflow_dispatch:
 
@@ -53,6 +54,20 @@ jobs:
       - name: Compile Android debug APK
         working-directory: android
         run: ./gradlew assembleDebug
+      - name: Audit merged Android permissions
+        run: |
+          manifest="$(find android/app/build/intermediates -type f -name AndroidManifest.xml | grep -E '/merged_manifest(s)?/' | head -n 1)"
+          test -n "$manifest"
+          echo "Merged manifest: $manifest"
+          grep -oE 'android\.permission\.[A-Z0-9_.]+' "$manifest" | sort -u || true
+          grep -q 'android.permission.INTERNET' "$manifest"
+          grep -q 'android.permission.CAMERA' "$manifest"
+          forbidden='ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|ACCESS_BACKGROUND_LOCATION|RECORD_AUDIO|READ_CONTACTS|WRITE_CONTACTS|GET_ACCOUNTS|READ_CALENDAR|WRITE_CALENDAR|READ_PHONE_STATE|READ_PHONE_NUMBERS|CALL_PHONE|ANSWER_PHONE_CALLS|READ_CALL_LOG|WRITE_CALL_LOG|READ_SMS|RECEIVE_SMS|SEND_SMS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_IMAGES|READ_MEDIA_VIDEO|READ_MEDIA_AUDIO|BODY_SENSORS|ACTIVITY_RECOGNITION'
+          if grep -Eq "android\.permission\.(${forbidden})" "$manifest"; then
+            echo 'Unexpected sensitive Android permission detected.' >&2
+            grep -oE 'android\.permission\.[A-Z0-9_.]+' "$manifest" | sort -u >&2
+            exit 1
+          fi
       - name: Compile Google Play release bundle
         working-directory: android
         run: ./gradlew bundleRelease
