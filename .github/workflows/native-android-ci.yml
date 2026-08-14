@@ -37,12 +37,15 @@ jobs:
           VITE_AUTH_REDIRECT_URL: timefillergames://auth/callback
       - run: npx cap add android
       - run: npm run mobile:configure-native
-      - name: Verify Android release SDK and deep link
+      - name: Verify Android release configuration
         run: |
           grep -q 'minSdkVersion = 26' android/variables.gradle
           grep -q 'compileSdkVersion = 36' android/variables.gradle
           grep -q 'targetSdkVersion = 36' android/variables.gradle
           grep -q 'android:scheme="timefillergames"' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
+          grep -Eq 'versionCode[[:space:]]+1' android/app/build.gradle
+          grep -Eq 'versionName[[:space:]]+"1.0.0"' android/app/build.gradle
       - name: Compile Android debug APK
         working-directory: android
         run: ./gradlew assembleDebug
