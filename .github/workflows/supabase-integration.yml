@@ -48,9 +48,24 @@ jobs:
       - name: Replay every migration from scratch
         run: supabase db reset --local
 
+      - name: Normalize local Supabase credentials
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          local_url="${API_URL:-}"
+          local_publishable_key="${PUBLISHABLE_KEY:-${ANON_KEY:-}}"
+          local_secret_key="${SECRET_KEY:-${SERVICE_ROLE_KEY:-}}"
+          test -n "$local_url"
+          test -n "$local_publishable_key"
+          test -n "$local_secret_key"
+          {
+            echo "LOCAL_SUPABASE_URL=$local_url"
+            echo "LOCAL_SUPABASE_PUBLISHABLE_KEY=$local_publishable_key"
+            echo "LOCAL_SUPABASE_SECRET_KEY=$local_secret_key"
+          } >> "$GITHUB_ENV"
+
       - name: Start authenticated account-erasure function
         run: |
-          supabase functions serve erase-account > /tmp/erase-account.log 2>&1 &
+          supabase functions serve > /tmp/erase-account.log 2>&1 &
           echo $! > /tmp/erase-account.pid
           for attempt in $(seq 1 30); do
             code=$(curl -sS -o /tmp/function-probe.json -w '%{http_code}' -X POST http://127.0.0.1:54321/functions/v1/erase-account || true)
@@ -64,20 +79,18 @@ jobs:
 
       - name: Verify anonymous Auth and permanent account erasure end to end
         run: |
-          eval "$(supabase status -o env | sed 's/^/export /')"
-          SUPABASE_URL="$API_URL" \
-          SUPABASE_ANON_KEY="$ANON_KEY" \
-          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          SUPABASE_URL="$LOCAL_SUPABASE_URL" \
+          SUPABASE_ANON_KEY="$LOCAL_SUPABASE_PUBLISHABLE_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
           node scripts/verify-local-supabase.mjs
 
       - name: Start TimeFillerGames API against clean local Supabase
         run: |
-          eval "$(supabase status -o env | sed 's/^/export /')"
-          NEXT_PUBLIC_SUPABASE_URL="$API_URL" \
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$ANON_KEY" \
-          NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY" \
-          SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" \
-          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          NEXT_PUBLIC_SUPABASE_URL="$LOCAL_SUPABASE_URL" \
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$LOCAL_SUPABASE_PUBLISHABLE_KEY" \
+          NEXT_PUBLIC_SUPABASE_ANON_KEY="$LOCAL_SUPABASE_PUBLISHABLE_KEY" \
+          SUPABASE_SECRET_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
           NEXT_PUBLIC_APP_URL="http://127.0.0.1:3000" \
           HOST_RECOVERY_GRACE_SECONDS="2" \
           CRON_SECRET="local-retention-qa-secret-please-do-not-use-in-production" \
@@ -97,45 +110,40 @@ jobs:
 
       - name: Verify Host, room, Player, snapshot privacy and Standard Bingo APIs end to end
         run: |
-          eval "$(supabase status -o env | sed 's/^/export /')"
-          SUPABASE_URL="$API_URL" \
-          SUPABASE_ANON_KEY="$ANON_KEY" \
-          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          SUPABASE_URL="$LOCAL_SUPABASE_URL" \
+          SUPABASE_ANON_KEY="$LOCAL_SUPABASE_PUBLISHABLE_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
           APP_BASE_URL="http://127.0.0.1:3000" \
           node scripts/verify-local-api-e2e.mjs
 
       - name: Verify 26-player People Bingo subset and draw behavior end to end
         run: |
-          eval "$(supabase status -o env | sed 's/^/export /')"
-          SUPABASE_URL="$API_URL" \
-          SUPABASE_ANON_KEY="$ANON_KEY" \
-          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          SUPABASE_URL="$LOCAL_SUPABASE_URL" \
+          SUPABASE_ANON_KEY="$LOCAL_SUPABASE_PUBLISHABLE_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
           APP_BASE_URL="http://127.0.0.1:3000" \
           node scripts/verify-people-bingo-26.mjs
 
       - name: Verify Majority Match and Quick Draw APIs end to end
         run: |
-          eval "$(supabase status -o env | sed 's/^/export /')"
-          SUPABASE_URL="$API_URL" \
-          SUPABASE_ANON_KEY="$ANON_KEY" \
-          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          SUPABASE_URL="$LOCAL_SUPABASE_URL" \
+          SUPABASE_ANON_KEY="$LOCAL_SUPABASE_PUBLISHABLE_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
           APP_BASE_URL="http://127.0.0.1:3000" \
           node scripts/verify-majority-quickdraw-e2e.mjs
 
       - name: Verify Host recovery and automatic pause end to end
         run: |
-          eval "$(supabase status -o env | sed 's/^/export /')"
-          SUPABASE_URL="$API_URL" \
-          SUPABASE_ANON_KEY="$ANON_KEY" \
-          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          SUPABASE_URL="$LOCAL_SUPABASE_URL" \
+          SUPABASE_ANON_KEY="$LOCAL_SUPABASE_PUBLISHABLE_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
           APP_BASE_URL="http://127.0.0.1:3000" \
           node scripts/verify-host-recovery-e2e.mjs
 
       - name: Verify retention authorization and cascade cleanup end to end
         run: |
-          eval "$(supabase status -o env | sed 's/^/export /')"
-          SUPABASE_URL="$API_URL" \
-          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          SUPABASE_URL="$LOCAL_SUPABASE_URL" \
+          SUPABASE_SERVICE_ROLE_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
           APP_BASE_URL="http://127.0.0.1:3000" \
           CRON_SECRET="local-retention-qa-secret-please-do-not-use-in-production" \
           node scripts/verify-retention-e2e.mjs
