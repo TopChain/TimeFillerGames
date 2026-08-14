@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const RELEASE_VERSION = '1.0.0';
 const RELEASE_BUILD = 1;
@@ -18,6 +19,18 @@ function updateFile(filePath, transform) {
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
+}
+
+function flattenIosPng(filePath) {
+  if (process.platform !== 'darwin') return;
+  const tempPath = `${filePath}.opaque.png`;
+  execFileSync('/usr/bin/sips', [
+    '--flatten',
+    '--setProperty', 'backgroundColor', '#5B5DEE',
+    filePath,
+    '--out', tempPath,
+  ], { stdio: 'ignore' });
+  fs.renameSync(tempPath, filePath);
 }
 
 function ensureIosPrivacyManifestResource(text) {
@@ -144,7 +157,11 @@ if (fs.existsSync(iosIconContents) && fs.existsSync(MASTER_ICON)) {
   if (unsupported.length) {
     throw new Error('Generated iOS AppIcon catalog requires legacy raster sizes. Add approved derived sizes before release packaging.');
   }
-  for (const image of namedImages) fs.copyFileSync(MASTER_ICON, path.join(iconDir, image.filename));
+  for (const image of namedImages) {
+    const iconPath = path.join(iconDir, image.filename);
+    fs.copyFileSync(MASTER_ICON, iconPath);
+    flattenIosPng(iconPath);
+  }
 }
 
-console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), vector launcher icon, TimeFillerGames URL scheme, iOS camera purpose string, and bundled Release 1 privacy manifest.`);
+console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), vector launcher icon, TimeFillerGames URL scheme, iOS camera purpose string, opaque App Store icon, and bundled Release 1 privacy manifest.`);
