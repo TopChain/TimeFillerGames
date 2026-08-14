@@ -29,4 +29,8 @@ if (required.VITE_AUTH_REDIRECT_URL !== 'timefillergames://auth/callback') {
   throw new Error('VITE_AUTH_REDIRECT_URL must be timefillergames://auth/callback for the native app.');
 }
 
+if (process.env.VITE_REVIEW_ACCESS_ENABLED !== 'true') {
+  throw new Error('VITE_REVIEW_ACCESS_ENABLED must be true for the store-review build so reviewers have reusable Host access.');
+}
+
 console.log('Mobile release environment passed validation.');
