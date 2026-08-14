@@ -61,6 +61,14 @@ function cacheKey(roomCode: string) {
   return roomCode.trim().toUpperCase();
 }
 
+export function compactQuickDrawStrokes(strokes: Stroke[]) {
+  let lastClear = -1;
+  for (let index = strokes.length - 1; index >= 0; index -= 1) {
+    if (strokes[index].payload.type === 'clear') { lastClear = index; break; }
+  }
+  return lastClear >= 0 ? strokes.slice(lastClear) : strokes;
+}
+
 function rememberSnapshot(roomCode: string, snapshot: QuickDrawSnapshot) {
   const key = cacheKey(roomCode);
   const prior = strokeCache.get(key);
@@ -74,6 +82,7 @@ function rememberSnapshot(roomCode: string, snapshot: QuickDrawSnapshot) {
     for (const stroke of snapshot.session.strokes) merged.set(stroke.sequence, stroke);
     strokes = [...merged.values()].sort((a, b) => a.sequence - b.sequence);
   }
+  strokes = compactQuickDrawStrokes(strokes);
 
   const mergedSnapshot: QuickDrawSnapshot = {
     ...snapshot,
