@@ -1,18 +1,20 @@
 # TimeFillerGames Release 1 Store Privacy/Data Map
 
-This inventory is derived from the current application code and live Supabase Release 1 schema. It is an engineering source for Apple App Privacy and Google Play Data Safety answers; final legal text still requires launch-jurisdiction review.
+This inventory is derived from the current application code and live Supabase schema. It is an engineering source for Apple App Privacy and Google Play Data Safety answers; final legal text still requires launch-jurisdiction review and validation against the production build.
 
 ## Identity and account data
 
-- Players normally use an invisible temporary Supabase authenticated identity. The application stores the auth user UUID on the room participant row.
+- Players normally use an invisible temporary Supabase authenticated identity. The application stores the Auth user UUID on the room participant row.
 - Hosts use a verified email-based Supabase account. A designated recovery co-host may optionally secure the same temporary user ID by verifying an email before Host recovery is allowed.
 - Participant rows store generated/Host-overridden nickname, built-in avatar identifiers, UI language, role, Ready/online state, join/last-seen/disconnect/leave timestamps, and nickname-lock state.
-- Release 1 does not require a public profile or visible player account.
+- Release 1 does not require a public profile or visible Player account.
+- Release 1 uses built-in avatars only. Custom participant photos are disabled in UI/API and database-enforced off.
 
 ## Room/session data
 
 - Room code, Host user UUID, game type, 3/5/8/10-minute duration, room language/context, participant cap, lock/late-join/ranking settings, theme identifier, lifecycle timestamps/status, and Host recovery heartbeat/generation.
 - Game-session configuration/state and lifecycle timestamps.
+- Rooms default to a 120-minute expiration TTL. The server accepts a deployment override only within 15–1440 minutes.
 
 ## Gameplay data
 
@@ -20,6 +22,12 @@ This inventory is derived from the current application code and live Supabase Re
 - Majority Match submissions and score entries.
 - Quick Draw secret-word/round metadata, drawing stroke payloads, guesses, normalized guesses, acceptance/points, and scoring/ranking state.
 - Public live Quick Draw guess streaming is disabled for the Release 1 launch; guesses remain server-mediated/private except for accepted/result behavior defined by the game.
+
+## Deferred Release 1.1 server-only schema
+
+- `content_packs`, `player_question_history`, and `game_results` exist as a dormant Word Challenge / Math Challenge foundation.
+- These tables currently contain no rows in the connected project, have RLS enabled, have no anon/authenticated policies, and are restricted to server/service-role access.
+- Release 1 does not expose Word Challenge or Math Challenge as playable public games.
 
 ## Moderation/security data
 
@@ -34,21 +42,33 @@ This inventory is derived from the current application code and live Supabase Re
 - Native haptics provide local interaction feedback.
 - Native Share opens the operating-system share sheet for a room join URL; TimeFillerGames does not receive the destination selected in the system share sheet.
 
-## Uploaded photos
+## Retention and cleanup
 
-- Uploaded participant-photo functionality must remain disabled for public Release 1 until retention, moderation, deletion, consent/age, and storage policy are approved and implemented. Built-in avatars are the launch-safe identity path.
+- Release 1 room data is ephemeral by design. New rooms default to a 120-minute expiration.
+- The source-ready Vercel Cron configuration calls the authenticated retention endpoint daily.
+- The retention service deletes expired room rows in batches; foreign-key cascades remove associated participants, game sessions, submissions, score entries, Bingo data, Quick Draw data, and room-linked moderation events.
+- Rate-limit buckets not updated for 24 hours are deleted by the same cleanup job.
+- The deployment must keep the retention Cron enabled and a strong `CRON_SECRET` configured; `npm run release:preflight` rejects a missing/weak Cron secret.
+- Final legal wording may describe shorter/longer practical deletion timing based on the production Cron schedule and operational backups; engineering should not make unsupported backup-retention claims.
+
+## Account deletion
+
+- In-app Privacy controls allow an authenticated Host or temporary Player identity to initiate permanent erasure.
+- The deployed JWT-protected Supabase `erase-account` Edge Function closes rooms hosted by the user, removes account-linked moderation events, anonymizes any remaining participant records to `Deleted Player`, marks those seats offline/left, completes the privacy request, and deletes the Supabase Auth identity.
+- The public `/privacy` page provides the external first-party account/data deletion entry point.
+- End-to-end deletion still requires validation against the production-like staged web/native build before submission.
 
 ## Third-party processing
 
-- Supabase provides authentication, PostgreSQL persistence, and realtime infrastructure for Release 1.
-- Production hosting provider for the Next.js authoritative API/web service is not yet selected/configured; store disclosures must be rechecked after that provider is finalized.
+- Supabase provides authentication, PostgreSQL persistence, Edge Function execution, and realtime infrastructure for Release 1.
+- The intended Next.js hosting target is Vercel, but the connected Vercel team currently has no project and deployment is not yet configured. Store disclosures must be rechecked after the final hosting project/domain is live.
+- No advertising SDK or cross-app tracking SDK is implemented in Release 1.
 
-## Retention/deletion items still requiring release policy
+## Remaining legal/account-owner decisions
 
-- Room/game data retention duration and cleanup schedule.
-- Moderation-event retention duration and support/escalation access.
-- Host account deletion/support workflow.
-- Any uploaded-photo lifecycle before that feature can be enabled.
-- Legal Privacy Policy/Terms language and jurisdiction-specific child/classroom requirements.
+- Real support contact identity and support escalation workflow.
+- Final Privacy Policy and Terms acceptance, governing law, and launch-jurisdiction language.
+- App Store / Play age-rating and target-audience declarations based on actual Release 1 behavior.
+- Any future uploaded-photo lifecycle, consent, moderation, storage and retention rules before that feature can ever be enabled.
 
-Do not copy this engineering inventory verbatim into store declarations without validating the final production build, enabled feature flags, hosting provider, SDK inventory, and legal policy immediately before submission.
+Do not copy this engineering inventory verbatim into store declarations without validating the final production build, enabled feature flags, hosting provider, SDK inventory, legal policy, account-deletion behavior, and production retention job immediately before submission.
