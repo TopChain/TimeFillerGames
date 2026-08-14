@@ -1,11 +1,21 @@
 {
+  "id": "/",
   "name": "TimeFillerGames",
   "short_name": "TimeFiller",
   "description": "Short host-led multiplayer games for spare group time.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#F8FAFC",
   "theme_color": "#5B5DEE",
   "lang": "en",
-  "categories": ["games", "education", "entertainment"]
+  "categories": ["games", "education", "entertainment"],
+  "icons": [
+    {
+      "src": "/brand/timefillergames-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
