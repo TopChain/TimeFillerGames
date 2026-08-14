@@ -80,6 +80,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Production dependency security gate: `npm audit --omit=dev --audit-level=high` passes; the earlier vulnerable Next 15 PostCSS/Sharp chain was upgraded instead of suppressed.
 - [x] Web/server CI: dependency audit + release-script syntax + TypeScript + rule/content/localization/policy/PWA/fairness/canvas tests + production Next.js build.
 - [x] Mobile CI: bundled Vite/Capacitor client build with reusable reviewer-access path enabled and presence-checked.
+- [x] Clean Supabase integration CI replays all 28 migrations and verifies Auth/account erasure, Capacitor CORS, room privacy, Standard and 26-player People Bingo, Majority Match, Quick Draw, Host recovery/automatic pause/former-Host denial, and retention cleanup end to end.
 - [x] GitHub Actions upgraded to the Node 24 generation: `checkout@v6`, `setup-node@v6`, `setup-java@v5`, `upload-artifact@v7`.
 - [x] Bounded Dependabot maintenance for npm weekly and GitHub Actions monthly; no auto-merge.
 - [x] Android native CI verifies min SDK 26 / compile+target API 36, deep link, HTTPS-only transport, Release 1 version and branded vector launcher.
@@ -104,7 +105,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Supabase room/participant/game persistence with restrictive RLS and private realtime boundary.
 - [x] Supabase project remains ACTIVE_HEALTHY under organization **TopChain AI Lab** with the same project reference and database endpoint.
 - [x] Live Supabase schema security/performance advisors have no warning-level findings; only expected informational server-only/unused-index notices remain before traffic.
-- [x] Repository migrations are versioned through `027_remove_unused_bingo_rpc.sql`, reproducing Release 1 security, RLS, recovery, privacy, concurrency, transactional scoring and uniqueness hardening.
+- [x] Repository migrations are versioned through `028_service_role_table_privileges.sql`, reproducing Release 1 security, RLS, recovery, privacy, concurrency, transactional scoring, uniqueness hardening, and least-privilege service-role access on a clean current Supabase stack.
 - [x] Dormant Release 1.1 server-only Word/Math tables are reproducible via restored migration 005 rather than hidden manual state.
 - [x] At most one active/paused game session per room is database-enforced.
 - [x] One active authenticated seat and one case-insensitive active nickname per room are database-enforced.
@@ -144,6 +145,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] First-party Support, Privacy Policy, Terms, Account/Data and Accessibility URL paths are implemented.
 - [x] Apple app privacy manifest source is versioned and native CI verifies it in the built app bundle.
 - [ ] Production/staging HTTPS hosting deployment and environment secrets. Connected Vercel team currently has no project; the connector deployment action remains internally invalid because its visible schema omits backend-required fields.
+- [ ] With explicit account-holder approval, apply migration 028 to the live Supabase project and redeploy the current JWT-protected `erase-account` source; the live function remains v3 and the safety gate correctly prevented an unapproved production permission change.
 - [x] A custom paid domain is not required for first publication; a stable HTTPS hosting origin can be used. A custom domain may be purchased later only if desired.
 - [ ] **Always-on production Supabase plan before store review/public release.** Official Supabase production guidance says Free projects may be auto-paused for low activity; paid-plan projects are not paused. This is a production reliability/payment gate, not the optional staging branch.
 - [ ] Create one dedicated normal Supabase email/password reviewer Host account and test those reusable credentials on the exact signed store binaries; never use an owner/admin/service account.

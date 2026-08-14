@@ -124,7 +124,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Apply every SQL file in `supabase/migrations/` in filename order to a clean Supabase environment. The current release chain is versioned through `027_remove_unused_bingo_rpc.sql`. Migration `005_release11_content_foundation.sql` reproduces the dormant server-only Word/Math foundation that already exists in the connected live project.
+Apply every SQL file in `supabase/migrations/` in filename order to a clean Supabase environment. The current release chain is versioned through `028_service_role_table_privileges.sql`. Migration `005_release11_content_foundation.sql` reproduces the dormant server-only Word/Math foundation that already exists in the connected live project; migration 028 explicitly grants the service role only the Release 1 table DML and private-routine access exercised by the server.
 
 ## Verification commands
 
