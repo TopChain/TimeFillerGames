@@ -159,4 +159,11 @@ with check (
 drop function if exists public.can_access_room_topic(text, boolean);
 drop function if exists public.is_room_member(uuid);
 drop function if exists public.is_room_host(uuid);
-revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    execute 'revoke execute on function public.rls_auto_enable() from public, anon, authenticated';
+  end if;
+end
+$$;
