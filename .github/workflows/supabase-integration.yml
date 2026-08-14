@@ -6,6 +6,7 @@ on:
       - 'supabase/**'
       - 'scripts/verify-local-supabase.mjs'
       - 'scripts/verify-local-api-e2e.mjs'
+      - 'scripts/verify-people-bingo-26.mjs'
       - '.github/workflows/supabase-integration.yml'
       - 'app/api/**'
       - 'lib/**'
@@ -19,7 +20,7 @@ permissions:
 jobs:
   local-supabase:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
 
@@ -64,7 +65,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           node scripts/verify-local-supabase.mjs
 
-      - name: Verify Host, room, Player, privacy and Bingo APIs end to end
+      - name: Start TimeFillerGames API against clean local Supabase
         run: |
           eval "$(supabase status -o env | sed 's/^/export /')"
           NEXT_PUBLIC_SUPABASE_URL="$API_URL" \
@@ -78,7 +79,7 @@ jobs:
 
           for attempt in $(seq 1 45); do
             if curl -fsS http://127.0.0.1:3000/api/health > /tmp/health.json; then
-              break
+              exit 0
             fi
             if [ "$attempt" = "45" ]; then
               cat /tmp/next.log
@@ -87,11 +88,23 @@ jobs:
             sleep 2
           done
 
+      - name: Verify Host, room, Player, snapshot privacy and Standard Bingo APIs end to end
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
           SUPABASE_URL="$API_URL" \
           SUPABASE_ANON_KEY="$ANON_KEY" \
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           APP_BASE_URL="http://127.0.0.1:3000" \
           node scripts/verify-local-api-e2e.mjs
+
+      - name: Verify 26-player People Bingo subset and draw behavior end to end
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          APP_BASE_URL="http://127.0.0.1:3000" \
+          node scripts/verify-people-bingo-26.mjs
 
       - name: Print integration logs on failure
         if: failure()
