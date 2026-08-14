@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BINGO_RESULT_UI_COPY } from '../lib/bingo-result-ui-copy';
 import { BINGO_UI_COPY } from '../lib/bingo-ui-copy';
 import { GAME_UI_COPY } from '../lib/game-ui-copy';
+import { HOST_GAME_UI_COPY } from '../lib/host-game-ui-copy';
 import { HOST_UI_COPY } from '../lib/host-ui-copy';
 import { MAJORITY_UI_COPY } from '../lib/majority-ui-copy';
 import { LOCALES, type Locale } from '../lib/product';
@@ -33,6 +34,7 @@ describe('Release 1 interface localization', () => {
   it.each(localeIds)('has non-empty landing-shell and Host copy for %s', (locale) => {
     expectNoBlankStrings(SHELL_UI_COPY[locale]);
     expectNoBlankStrings(HOST_UI_COPY[locale]);
+    expectNoBlankStrings(HOST_GAME_UI_COPY[locale]);
   });
 
   it.each(localeIds)('has non-empty Quick Draw interface copy for %s', (locale) => {
