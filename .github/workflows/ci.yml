@@ -20,6 +20,13 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Audit production dependency graph
         run: npm audit --omit=dev --audit-level=high
+      - name: Validate release/staging scripts
+        run: |
+          node --check scripts/validate-server-release-env.mjs
+          node --check scripts/validate-mobile-release-env.mjs
+          node --check scripts/smoke-staging.mjs
+          node --check scripts/load-room.mjs
+          node --check scripts/e2e-staging.mjs
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
