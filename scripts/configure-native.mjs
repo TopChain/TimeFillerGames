@@ -5,6 +5,8 @@ const RELEASE_VERSION = '1.0.0';
 const RELEASE_BUILD = 1;
 const MASTER_ICON = 'assets/native/timefillergames-app-icon-1024.png';
 const PRIVACY_MANIFEST = 'assets/native/PrivacyInfo.xcprivacy';
+const IOS_PRIVACY_FILE_REF = '7A1C0FFEE0A1000000000001';
+const IOS_PRIVACY_BUILD_REF = '7A1C0FFEE0A1000000000002';
 
 function updateFile(filePath, transform) {
   if (!fs.existsSync(filePath)) return false;
@@ -16,6 +18,31 @@ function updateFile(filePath, transform) {
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
+}
+
+function ensureIosPrivacyManifestResource(text) {
+  if (text.includes('PrivacyInfo.xcprivacy in Resources')) return text;
+  let next = text;
+  next = next.replace(
+    '/* Begin PBXBuildFile section */',
+    `/* Begin PBXBuildFile section */\n\t\t${IOS_PRIVACY_BUILD_REF} /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ${IOS_PRIVACY_FILE_REF} /* PrivacyInfo.xcprivacy */; };`,
+  );
+  next = next.replace(
+    '/* Begin PBXFileReference section */',
+    `/* Begin PBXFileReference section */\n\t\t${IOS_PRIVACY_FILE_REF} /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };`,
+  );
+  next = next.replace(
+    '504EC3061FED79650016851F /* App */ = {\n\t\t\tisa = PBXGroup;\n\t\t\tchildren = (',
+    `504EC3061FED79650016851F /* App */ = {\n\t\t\tisa = PBXGroup;\n\t\t\tchildren = (\n\t\t\t\t${IOS_PRIVACY_FILE_REF} /* PrivacyInfo.xcprivacy */,`,
+  );
+  next = next.replace(
+    '504EC3021FED79650016851F /* Resources */ = {\n\t\t\tisa = PBXResourcesBuildPhase;\n\t\t\tbuildActionMask = 2147483647;\n\t\t\tfiles = (',
+    `504EC3021FED79650016851F /* Resources */ = {\n\t\t\tisa = PBXResourcesBuildPhase;\n\t\t\tbuildActionMask = 2147483647;\n\t\t\tfiles = (\n\t\t\t\t${IOS_PRIVACY_BUILD_REF} /* PrivacyInfo.xcprivacy in Resources */,`,
+  );
+  if (!next.includes(`${IOS_PRIVACY_BUILD_REF} /* PrivacyInfo.xcprivacy in Resources */`) || !next.includes(`${IOS_PRIVACY_FILE_REF} /* PrivacyInfo.xcprivacy */`)) {
+    throw new Error('Could not attach PrivacyInfo.xcprivacy to the generated iOS App target. Capacitor Xcode template changed.');
+  }
+  return next;
 }
 
 const androidVars = 'android/variables.gradle';
@@ -95,9 +122,13 @@ if (fs.existsSync('ios/App/App') && fs.existsSync(PRIVACY_MANIFEST)) {
 }
 
 const iosProject = 'ios/App/App.xcodeproj/project.pbxproj';
-updateFile(iosProject, (text) => text
-  .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${RELEASE_VERSION};`)
-  .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${RELEASE_BUILD};`));
+updateFile(iosProject, (text) => {
+  let next = text
+    .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${RELEASE_VERSION};`)
+    .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${RELEASE_BUILD};`);
+  if (fs.existsSync(PRIVACY_MANIFEST)) next = ensureIosPrivacyManifestResource(next);
+  return next;
+});
 
 const iosIconContents = 'ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json';
 if (fs.existsSync(iosIconContents) && fs.existsSync(MASTER_ICON)) {
@@ -116,4 +147,4 @@ if (fs.existsSync(iosIconContents) && fs.existsSync(MASTER_ICON)) {
   for (const image of namedImages) fs.copyFileSync(MASTER_ICON, path.join(iconDir, image.filename));
 }
 
-console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), vector launcher icon, TimeFillerGames URL scheme, iOS camera purpose string, and Release 1 privacy manifest source.`);
+console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), vector launcher icon, TimeFillerGames URL scheme, iOS camera purpose string, and bundled Release 1 privacy manifest.`);
