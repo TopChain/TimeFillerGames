@@ -4,8 +4,14 @@ import { describe, expect, it } from 'vitest';
 type ManifestIcon = { src: string; sizes?: string; type?: string; purpose?: string };
 type Manifest = { display?: string; start_url?: string; icons?: ManifestIcon[] };
 
-function pngSignature(path: string) {
-  return readFileSync(path).subarray(0, 8).toString('hex');
+function expectPng(path: string, expectedSize: number) {
+  const bytes = readFileSync(path);
+  expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+  expect(bytes.subarray(12, 16).toString('ascii')).toBe('IHDR');
+  expect(bytes.readUInt32BE(16)).toBe(expectedSize);
+  expect(bytes.readUInt32BE(20)).toBe(expectedSize);
+  expect(bytes.subarray(-8, -4).toString('ascii')).toBe('IEND');
+  expect(bytes.length).toBeGreaterThan(expectedSize === 192 ? 5000 : 15000);
 }
 
 describe('PWA release manifest', () => {
@@ -16,7 +22,7 @@ describe('PWA release manifest', () => {
     expect(manifest.start_url).toBe('/');
   });
 
-  it('ships Chromium-standard 192px and 512px raster install icons', () => {
+  it('ships complete Chromium-standard 192px and 512px raster install icons', () => {
     const icons = manifest.icons ?? [];
     expect(icons).toContainEqual(expect.objectContaining({
       src: '/icons/timefillergames-192.png',
@@ -28,8 +34,8 @@ describe('PWA release manifest', () => {
       sizes: '512x512',
       type: 'image/png',
     }));
-    expect(pngSignature('public/icons/timefillergames-192.png')).toBe('89504e470d0a1a0a');
-    expect(pngSignature('public/icons/timefillergames-512.png')).toBe('89504e470d0a1a0a');
+    expectPng('public/icons/timefillergames-192.png', 192);
+    expectPng('public/icons/timefillergames-512.png', 512);
   });
 
   it('retains the scalable maskable master mark', () => {
