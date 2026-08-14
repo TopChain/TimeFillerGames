@@ -6,9 +6,13 @@ export const NATIVE_APP_ORIGINS = new Set([
 
 function normalizedOrigin(value: string | null | undefined) {
   if (!value) return null;
+  // WHATWG URL reports an opaque (`null`) origin for custom schemes such as
+  // Capacitor's. Keep the one native origin we explicitly trust exact instead
+  // of broadening custom-scheme parsing.
+  if (value === 'capacitor://localhost') return value;
   try {
     const parsed = new URL(value);
-    return parsed.origin;
+    return parsed.origin === 'null' ? null : parsed.origin;
   } catch {
     return null;
   }
