@@ -28,7 +28,8 @@ export function PrivacyControls({ source = 'app' }: { source?: 'app' | 'web' }) 
       const { data: auth, error: authError } = await supabase.auth.getUser();
       if (authError || !auth.user) throw new Error(authError?.message ?? 'Your authenticated identity could not be verified.');
 
-      const { error } = await supabase.functions.invoke('erase-account', { body: { source } });
+      const requestSource = source === 'web' || (typeof window !== 'undefined' && window.location.pathname === '/privacy') ? 'web' : 'app';
+      const { error } = await supabase.functions.invoke('erase-account', { body: { source: requestSource } });
       if (error) throw new Error(error.message);
 
       for (const key of Object.keys(localStorage)) {
