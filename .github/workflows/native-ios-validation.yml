@@ -53,6 +53,14 @@ jobs:
           grep -q 'NSPrivacyCollectedDataTypeProductInteraction' ios/App/App/PrivacyInfo.xcprivacy
           grep -q 'NSPrivacyCollectedDataTypeOtherDiagnosticData' ios/App/App/PrivacyInfo.xcprivacy
           grep -q '<key>NSPrivacyTracking</key>' ios/App/App/PrivacyInfo.xcprivacy
+      - name: Reject unnecessary iOS sensitive permissions
+        run: |
+          forbidden='NSMicrophoneUsageDescription|NSLocationWhenInUseUsageDescription|NSLocationAlwaysUsageDescription|NSLocationAlwaysAndWhenInUseUsageDescription|NSPhotoLibraryUsageDescription|NSPhotoLibraryAddUsageDescription|NSContactsUsageDescription|NSCalendarsUsageDescription|NSRemindersUsageDescription|NSBluetoothAlwaysUsageDescription|NSBluetoothPeripheralUsageDescription|NSSpeechRecognitionUsageDescription|NSHealthShareUsageDescription|NSHealthUpdateUsageDescription|NSMotionUsageDescription'
+          if grep -Eq "$forbidden" ios/App/App/Info.plist; then
+            echo 'Unexpected sensitive iOS usage description detected.' >&2
+            grep -E "$forbidden" ios/App/App/Info.plist >&2 || true
+            exit 1
+          fi
       - name: Verify App Store icons are opaque 1024px PNGs
         run: |
           found=0
