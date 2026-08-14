@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { currentSession, getBrowserSupabase } from '@/lib/supabase/browser';
 
-export function PrivacyControls() {
+export function PrivacyControls({ source = 'app' }: { source?: 'app' | 'web' }) {
   const [hasIdentity, setHasIdentity] = useState(false);
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -27,7 +27,7 @@ export function PrivacyControls() {
       const { data: auth, error: authError } = await supabase.auth.getUser();
       if (authError || !auth.user) throw new Error(authError?.message ?? 'Your authenticated identity could not be verified.');
 
-      const { error } = await supabase.functions.invoke('erase-account', { body: { source: 'app' } });
+      const { error } = await supabase.functions.invoke('erase-account', { body: { source } });
       if (error) throw new Error(error.message);
 
       for (const key of Object.keys(localStorage)) {
