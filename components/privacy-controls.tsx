@@ -27,35 +27,17 @@ export function PrivacyControls() {
       const { data: auth, error: authError } = await supabase.auth.getUser();
       if (authError || !auth.user) throw new Error(authError?.message ?? 'Your authenticated identity could not be verified.');
 
-      const { data: existing, error: existingError } = await supabase
-        .from('privacy_requests')
-        .select('id,status,requested_at')
-        .eq('auth_user_id', auth.user.id)
-        .eq('request_kind', 'erase_account')
-        .in('status', ['pending', 'processing'])
-        .order('requested_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (existingError) throw new Error(existingError.message);
+      const { error } = await supabase.functions.invoke('erase-account', { body: { source: 'app' } });
+      if (error) throw new Error(error.message);
 
-      if (!existing) {
-        const { error } = await supabase.from('privacy_requests').insert({
-          auth_user_id: auth.user.id,
-          request_kind: 'erase_account',
-          request_source: 'app',
-          status: 'pending',
-        });
-        if (error) throw new Error(error.message);
-      }
-
-      setMessage('Deletion request submitted. Your account and associated personal data are scheduled for deletion within 30 days, except data that must be retained by law.');
       for (const key of Object.keys(localStorage)) {
         if (key.startsWith('timefillergames:seat:')) localStorage.removeItem(key);
       }
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      setMessage('Your TimeFillerGames account and associated personal data were deleted.');
       setHasIdentity(false);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not submit the deletion request.');
+      setMessage(error instanceof Error ? error.message : 'Account deletion could not be completed. Please try again.');
     } finally {
       setBusy(false);
       setConfirming(false);
@@ -66,10 +48,10 @@ export function PrivacyControls() {
     <button className="privacy-trigger" type="button" onClick={() => setOpen((value) => !value)}>Privacy</button>
     {open && <div className="privacy-panel" role="dialog" aria-label="Privacy controls">
       <strong>Account & data</strong>
-      <p>Request deletion of this TimeFillerGames identity and associated personal data. Processing may take up to 30 days.</p>
+      <p>Delete this TimeFillerGames identity and associated personal data. Hosted rooms owned by this identity will close. Other room participation is anonymized before the account is removed.</p>
       {!confirming ? <button className="btn secondary" type="button" onClick={() => setConfirming(true)}>Delete my account & data</button> : <div className="privacy-confirm">
-        <p><strong>This signs you out.</strong> Hosted rooms may close and this identity will no longer be recoverable after processing.</p>
-        <button className="btn danger" type="button" disabled={busy} onClick={() => void requestErasure()}>{busy ? 'Submitting…' : 'Confirm deletion request'}</button>
+        <p><strong>This action is permanent.</strong> You will be signed out and this identity cannot be recovered.</p>
+        <button className="btn danger" type="button" disabled={busy} onClick={() => void requestErasure()}>{busy ? 'Deleting…' : 'Permanently delete account & data'}</button>
         <button className="btn ghost" type="button" disabled={busy} onClick={() => setConfirming(false)}>Cancel</button>
       </div>}
       {message && <div className="notice" role="status">{message}</div>}
