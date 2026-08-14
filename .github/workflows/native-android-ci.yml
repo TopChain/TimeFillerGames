@@ -47,7 +47,8 @@ jobs:
           grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
           grep -Eq 'versionCode[[:space:]]+1' android/app/build.gradle
           grep -Eq 'versionName[[:space:]]+"1.0.0"' android/app/build.gradle
-          test -s android/app/src/main/res/drawable-nodpi/timefillergames_launcher.png
+          test -s android/app/src/main/res/drawable/timefillergames_launcher.xml
+          grep -q '#22D3C5' android/app/src/main/res/drawable/timefillergames_launcher.xml
           grep -q '@drawable/timefillergames_launcher' android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
       - name: Compile Android debug APK
         working-directory: android
