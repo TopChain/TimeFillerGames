@@ -51,6 +51,17 @@ jobs:
           grep -q 'NSPrivacyCollectedDataTypeProductInteraction' ios/App/App/PrivacyInfo.xcprivacy
           grep -q 'NSPrivacyCollectedDataTypeOtherDiagnosticData' ios/App/App/PrivacyInfo.xcprivacy
           grep -q '<key>NSPrivacyTracking</key>' ios/App/App/PrivacyInfo.xcprivacy
+      - name: Verify App Store icons are opaque 1024px PNGs
+        run: |
+          found=0
+          for icon in ios/App/App/Assets.xcassets/AppIcon.appiconset/*.png; do
+            test -f "$icon" || continue
+            found=1
+            test "$(sips -g pixelWidth "$icon" | awk '/pixelWidth/ {print $2}')" = "1024"
+            test "$(sips -g pixelHeight "$icon" | awk '/pixelHeight/ {print $2}')" = "1024"
+            test "$(sips -g hasAlpha "$icon" | awk '/hasAlpha/ {print $2}')" = "no"
+          done
+          test "$found" = "1"
       - name: Compile unsigned iOS simulator build
         run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath "$RUNNER_TEMP/DerivedData" CODE_SIGNING_ALLOWED=NO build
       - name: Verify privacy manifest is bundled at app root
