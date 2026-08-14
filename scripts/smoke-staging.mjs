@@ -1,5 +1,5 @@
-const base = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
-if (!base) throw new Error('NEXT_PUBLIC_APP_URL is required for the staging smoke test.');
+const base = (process.env.NEXT_PUBLIC_APP_URL || process.env.STAGING_BASE_URL || '').replace(/\/$/, '');
+if (!base) throw new Error('NEXT_PUBLIC_APP_URL or STAGING_BASE_URL is required for the staging smoke test.');
 const parsed = new URL(base);
 if (parsed.protocol !== 'https:') throw new Error('Staging smoke tests require an HTTPS origin.');
 
@@ -12,11 +12,17 @@ async function expectStatus(path, expected) {
 const health = await expectStatus('/api/health', 200);
 const healthJson = await health.json();
 if (healthJson?.ok !== true) throw new Error('/api/health did not report ok=true.');
-if (!healthJson?.publicSupabaseConfigured || !healthJson?.serverSupabaseConfigured) {
+if (!healthJson?.dependencies?.publicSupabaseConfigured || !healthJson?.dependencies?.serverSupabaseConfigured) {
   throw new Error('/api/health reports incomplete Supabase configuration.');
 }
+if (healthJson?.dependencies?.databaseReachable !== true) {
+  throw new Error('/api/health reports that the deployed server cannot reach the Supabase database.');
+}
+if (!Number.isFinite(healthJson?.dependencies?.databaseLatencyMs)) {
+  throw new Error('/api/health did not report database readiness latency.');
+}
 
-for (const path of ['/', '/privacy-policy', '/terms', '/privacy', '/support']) {
+for (const path of ['/', '/privacy-policy', '/terms', '/privacy', '/support', '/accessibility']) {
   const response = await expectStatus(path, 200);
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) throw new Error(`${path} did not return HTML.`);
@@ -24,4 +30,4 @@ for (const path of ['/', '/privacy-policy', '/terms', '/privacy', '/support']) {
 
 await expectStatus('/api/cron/retention', 401);
 
-console.log(`Staging smoke test passed for ${base}.`);
+console.log(`Staging smoke test passed for ${base}; database latency ${healthJson.dependencies.databaseLatencyMs} ms.`);
