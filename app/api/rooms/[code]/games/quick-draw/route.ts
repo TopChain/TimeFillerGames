@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateRelease1GuessVisibility } from '@/lib/quick-draw-launch-policy';
-import { getQuickDrawState, startQuickDraw } from '@/lib/quick-draw-service';
+import { getQuickDrawReadState } from '@/lib/quick-draw-read-service';
+import { startQuickDraw } from '@/lib/quick-draw-service';
 import { requireHostUser, requireUser } from '@/lib/supabase/auth';
 
 export async function GET(request: Request, context: { params: Promise<{ code: string }> }) {
@@ -8,7 +9,13 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const user = await requireUser(request);
     if (!user) return NextResponse.json({ error: 'Authentication is required to view Quick Draw state.' }, { status: 401 });
     const { code } = await context.params;
-    return NextResponse.json(await getQuickDrawState(code, user.id), { headers: { 'cache-control': 'no-store' } });
+    const url = new URL(request.url);
+    const sessionId = url.searchParams.get('session');
+    const roundRaw = url.searchParams.get('round');
+    const afterRaw = url.searchParams.get('after');
+    const roundIndex = roundRaw === null ? null : Number(roundRaw);
+    const afterSequence = afterRaw === null ? null : Number(afterRaw);
+    return NextResponse.json(await getQuickDrawReadState(code, user.id, { sessionId, roundIndex, afterSequence }), { headers: { 'cache-control': 'no-store' } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not load Quick Draw.' }, { status: 400 });
   }
