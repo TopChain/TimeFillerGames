@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run typecheck && npm run test && npm run build",
+    "release:preflight": "npm run check && npm run mobile:release:build",
     "mobile:dev": "vite --config mobile/build.config.ts",
     "mobile:build": "vite build --config mobile/build.config.ts",
     "mobile:release:check": "node scripts/validate-mobile-release-env.mjs",
