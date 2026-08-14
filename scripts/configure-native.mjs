@@ -43,10 +43,25 @@ updateFile(androidManifest, (text) => {
   return next;
 });
 
-if (fs.existsSync('android') && fs.existsSync(MASTER_ICON)) {
-  const drawableDir = 'android/app/src/main/res/drawable-nodpi';
+if (fs.existsSync('android')) {
+  const drawableDir = 'android/app/src/main/res/drawable';
   ensureDir(drawableDir);
-  fs.copyFileSync(MASTER_ICON, path.join(drawableDir, 'timefillergames_launcher.png'));
+  fs.writeFileSync(path.join(drawableDir, 'timefillergames_launcher.xml'), `<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <path android:fillColor="#FFFFFF" android:pathData="M49,13 L59,13 L59,20 L49,20 Z"/>
+  <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="5.5" android:pathData="M54,22 C36.3,22 22,36.3 22,54 C22,71.7 36.3,86 54,86 C71.7,86 86,71.7 86,54 C86,36.3 71.7,22 54,22 Z"/>
+  <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="4" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M54,35 L54,47 L67,39"/>
+  <path android:fillColor="#FFFFFF" android:pathData="M35,49 C31,49 28,53 28,58 L28,65 C28,70 32,74 37,74 L71,74 C76,74 80,70 80,65 L80,58 C80,53 77,49 73,49 Z"/>
+  <path android:fillColor="#00000000" android:strokeColor="#5B5DEE" android:strokeWidth="3.5" android:strokeLineCap="round" android:pathData="M37,61 L47,61 M42,56 L42,66"/>
+  <path android:fillColor="#22D3C5" android:pathData="M63,55 C65.2,55 67,56.8 67,59 C67,61.2 65.2,63 63,63 C60.8,63 59,61.2 59,59 C59,56.8 60.8,55 63,55 Z"/>
+  <path android:fillColor="#FF647C" android:pathData="M71,60 C73.2,60 75,61.8 75,64 C75,66.2 73.2,68 71,68 C68.8,68 67,66.2 67,64 C67,61.8 68.8,60 71,60 Z"/>
+  <path android:fillColor="#FFC857" android:pathData="M62,64 C64.2,64 66,65.8 66,68 C66,70.2 64.2,72 62,72 C59.8,72 58,70.2 58,68 C58,65.8 59.8,64 62,64 Z"/>
+</vector>
+`);
 
   const valuesDir = 'android/app/src/main/res/values';
   ensureDir(valuesDir);
@@ -96,4 +111,4 @@ if (fs.existsSync(iosIconContents) && fs.existsSync(MASTER_ICON)) {
   for (const image of namedImages) fs.copyFileSync(MASTER_ICON, path.join(iconDir, image.filename));
 }
 
-console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), master launcher icon, TimeFillerGames URL scheme, and iOS camera purpose string.`);
+console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), vector launcher icon, TimeFillerGames URL scheme, and iOS camera purpose string.`);
