@@ -33,13 +33,16 @@ TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 
 - Server random draws and automatic marking.
 - One-line winner validation with same-draw shared placement.
 - Server-authoritative pause/resume.
+- PostgreSQL guards make draw history monotonic and derive winner rows from the committed draw state, so retried/concurrent Host draws cannot create divergent winner state.
 
 ### People Bingo 5×5
 - Hard minimum of 25 unique active participants.
 - Avatar + display-name identity cells.
 - No repeated participant within one card.
 - Server identity draws + automatic marking.
-- Larger boards disabled pending real-session fairness/readability validation.
+- The same database-authoritative draw/winner path as Standard Bingo.
+- Deterministic >25 subset simulations verify unique cards and broad repeated-sample distribution; real-session fairness/readability validation still remains before public capacity claims.
+- Larger boards disabled for Release 1.
 
 ### Majority Match
 - Private predictions and no speed bonus.
@@ -47,6 +50,7 @@ TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 
 - Server question timers, aggregate reveal and ranking privacy.
 - Safe late-join activation boundaries.
 - Curated Release 1 bank: 50 neutral prompts, 10 in each supported category.
+- Reveal scoring is transaction-bound to the committed answering → revealing transition; duplicate reveal/next writes are idempotent while pause/resume remains supported.
 
 ### Quick Draw & Guess
 - Fixed artist rotation with random or join-order selection.
@@ -59,6 +63,9 @@ TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 
 - Public/moderated live guess streaming is disabled for Release 1; guesses stay private until accepted.
 - Curated Release 1 bank: 144 words with category × difficulty coverage checks.
 - Server-authoritative pause/resume preserving the active drawing deadline.
+- Accepted-guesser and artist scores are transaction-bound to their authoritative database events and idempotent by score reason.
+- Concurrent next-round retries serialize per session/round and canonicalize state from the authoritative round row.
+- High-frequency GET polling now requests incremental stroke sequences instead of re-downloading the full round on every 650 ms refresh; local canvas history compacts at the most recent clear.
 
 ## Room / recovery / moderation
 
@@ -70,6 +77,8 @@ TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 
 - Co-host remains an active player.
 - Replay / Change Game while keeping the room.
 - Participant ↔ spectator changes, participant removal, nickname override/lock and duplicate-name disambiguation.
+- Database uniqueness backs one active authenticated seat and one case-insensitive active nickname per room.
+- Database uniqueness guarantees at most one active/paused game session per room.
 - Moderation audit events.
 - Ranking visibility/privacy controls.
 - Database-backed request throttling and Quick Draw event flood limits.
@@ -78,12 +87,12 @@ TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 
 
 - Public routes: `/privacy-policy`, `/terms`, `/privacy`, `/support`, `/accessibility`.
 - In-app account/data deletion control for permanent Host and temporary Player authenticated identities.
-- JWT-protected Supabase `erase-account` Edge Function is deployed and source-versioned.
+- JWT-protected Supabase `erase-account` Edge Function is deployed and source-versioned; a request is marked completed only after Auth identity deletion succeeds.
 - Rooms default to a 120-minute TTL.
 - Source-ready Vercel Cron configuration calls the authenticated retention endpoint daily.
 - Expired rooms cascade-delete Release 1 gameplay/room-linked moderation data; stale rate-limit buckets older than 24 hours are cleaned up.
 - Dormant Release 1.1 tables (`content_packs`, `player_question_history`, `game_results`) are server-only, RLS-protected and currently unused by the public Release 1 product.
-- iOS Release 1 includes an app-level `PrivacyInfo.xcprivacy` declaration for email address, user ID, gameplay content and product interaction; CI validates the plist and proves it is bundled at the root of the built `.app`.
+- iOS Release 1 includes an app-level `PrivacyInfo.xcprivacy` declaration; CI validates the plist and proves it is bundled at the root of the built `.app`.
 
 ## Brand / accessibility / installability
 
@@ -96,7 +105,7 @@ TimeFillerGames is a host-led multiplayer mini-game platform for 3, 5, 8, or 10 
 - Host primary `#5B5DEE`; Player primary `#0F7A86`.
 - Master stopwatch/controller SVG and 1024px raster app-icon source.
 - Android branded vector adaptive launcher.
-- PWA ships explicit 192×192 and 512×512 PNG install icons plus the scalable maskable master SVG; CI regression-tests those manifest entries and PNG signatures.
+- PWA ships explicit 192×192 and 512×512 PNG install icons plus the scalable maskable master SVG; CI verifies PNG signature, dimensions and complete IEND termination.
 - 20px cards, 12–16px controls, 44px minimum primary interaction target.
 - Reduced-motion, visible focus, increased-contrast and forced-colors foundations.
 - First-party Accessibility page.
@@ -115,7 +124,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Apply every SQL file in `supabase/migrations/` in filename order to a clean Supabase environment. Migration `005_release11_content_foundation.sql` reproduces the dormant server-only Word/Math foundation that already exists in the connected live project.
+Apply every SQL file in `supabase/migrations/` in filename order to a clean Supabase environment. The current release chain is versioned through `027_remove_unused_bingo_rpc.sql`. Migration `005_release11_content_foundation.sql` reproduces the dormant server-only Word/Math foundation that already exists in the connected live project.
 
 ## Verification commands
 
@@ -146,9 +155,10 @@ After a real HTTPS staging deployment exists:
 
 ```bash
 npm run staging:smoke
+npm run staging:load
 ```
 
-The staging smoke check verifies the public app, `/api/health`, Privacy Policy, Terms, Account/Data, Support, Accessibility, and that the retention endpoint rejects unauthenticated requests.
+`staging:smoke` verifies the public app, `/api/health`, Privacy Policy, Terms, Account/Data, Support, Accessibility, and that the retention endpoint rejects unauthenticated requests. `staging:load` creates a temporary room, generates independent anonymous Supabase identities, exercises concurrent join/heartbeat/snapshot traffic, reports p50/p95/max latency and closes the room afterward. It uses the existing Supabase project and does not require a paid Supabase branch.
 
 ## Automated native / security validation
 
@@ -159,7 +169,7 @@ GitHub Actions use the Node 24 generation of the official actions (`checkout@v6`
 - Android: generated native project, min SDK 26, compile/target API 36, HTTPS-only transport, deep link, version 1.0.0 (1), branded vector launcher, debug APK, Play-format release AAB and retained AAB artifact.
 - iOS: generated native project, camera purpose string, deep-link scheme, version 1.0.0 (1), valid app privacy manifest, unsigned Xcode simulator build, and verification that `PrivacyInfo.xcprivacy` is bundled at the `.app` root.
 
-The current release candidate has passed the web/server audit/type/test/build, mobile bundle, Android APK/AAB, and iOS Xcode/privacy-manifest gates. Signing and store-account distribution still require the account owner’s Apple/Google credentials.
+Signing and store-account distribution still require the account owner’s Apple/Google credentials.
 
 ## Dependency maintenance
 
@@ -167,9 +177,9 @@ The current release candidate has passed the web/server audit/type/test/build, m
 
 ## Current external publication blockers
 
-Code/build work is not the main blocker now. Public release still requires:
+Code/build work is no longer the main blocker. Public release still requires:
 
-1. A real HTTPS deployment/domain and production environment secrets. The connected Vercel team currently has no project, and the available deployment connector is internally malformed.
+1. A real HTTPS deployment and production environment secrets. The connected Vercel team currently has no project, and the available deployment connector is internally malformed.
 2. A real support email/contact identity on the production Support page and store listings.
 3. Final account-holder/legal acceptance of Privacy Policy and Terms, including governing-law/age wording.
 4. Apple Developer/App Store Connect certificates, signing and TestFlight.
@@ -177,12 +187,12 @@ Code/build work is not the main blocker now. Public release still requires:
 6. Real iPhone + Android + laptop/projector QR/device testing.
 7. Screen-reader, keyboard, text-scale and contrast validation on real supported devices/browsers.
 8. Weak-Wi-Fi/reconnect/Host-recovery and Quick Draw real-network tests.
-9. People Bingo 5×5 phone readability and >25-player fairness sessions.
-10. Load testing before public capacity claims.
+9. People Bingo 5×5 phone readability and real >25-player fairness sessions.
+10. `staging:load` against the deployed origin before any public capacity claim.
 11. Closed beta validating actual 3 / 5 / 8 / 10-minute pacing.
 12. Production screenshots, store age/target-audience questionnaires, final smoke test and rollback readiness.
 
-A clean Supabase development branch would help with staging migration/end-to-end tests. The connected TopChain AI Lab organization currently has no branch; creating one costs $0.01344/hour and requires explicit approval before creation.
+A separate paid Supabase staging branch is **not** part of the release requirement. The existing project plus HTTPS staging/device QA is the chosen path.
 
 See `docs/RELEASE_CHECKLIST.md` for the exact publication ledger and `docs/STORE_SUBMISSION_DRAFT.md` / `docs/STORE_PRIVACY_DATA_MAP.md` for store preparation.
 
