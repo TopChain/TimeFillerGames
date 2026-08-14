@@ -55,18 +55,24 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [ ] Real-network drawing/clear/guess-flood validation; replace polling transport only if evidence shows it is required.
 - [ ] Fuzzy spelling tolerance remains deferred unless usability/content evidence supports broadening acceptance.
 
-## CI / native / accessibility
+## CI / framework / native / accessibility
 - [x] Approved semantic brand tokens and Host Indigo / Player Teal defaults.
 - [x] Light / Dark / System preference using semantic tokens.
 - [x] Reduced motion, focus-visible, increased-contrast, forced-colors, text-size resilience baseline.
 - [x] 44px primary interaction minimum and non-color-only Bingo marking.
 - [x] Deterministic `package-lock.json` and `npm ci` across web/mobile/native CI.
-- [x] Web/server CI: TypeScript + rule/content/localization/policy tests + production Next.js build.
+- [x] Framework upgraded to Next.js 16.3.1 + React 19.2 + TypeScript 5.9; Node engine requires 20.9+ and CI uses Node 24.
+- [x] Production dependency security gate: `npm audit --omit=dev --audit-level=high` passes; the earlier vulnerable Next 15 PostCSS/Sharp chain was upgraded instead of suppressed.
+- [x] Web/server CI: dependency audit + TypeScript + rule/content/localization/policy/PWA tests + production Next.js build.
 - [x] Mobile CI: bundled Vite/Capacitor client build.
+- [x] GitHub Actions upgraded to the Node 24 generation: `checkout@v6`, `setup-node@v6`, `setup-java@v5`, `upload-artifact@v7`.
+- [x] Bounded Dependabot maintenance for npm weekly and GitHub Actions monthly; no auto-merge.
 - [x] Android native CI verifies min SDK 26 / compile+target API 36, deep link, HTTPS-only transport, Release 1 version and branded vector launcher; debug APK and Google Play release AAB both compile successfully.
 - [x] Android Play-format AAB artifact retained by GitHub Actions after successful native run.
-- [x] iOS native validation runs automatically on relevant PR changes; generated project, camera permission, deep link, Release 1 version and unsigned Xcode simulator build all passed on macOS.
+- [x] iOS native validation runs automatically on relevant PR changes; generated project, camera permission, deep link, Release 1 version and unsigned Xcode simulator build all pass on macOS.
+- [x] App-level `PrivacyInfo.xcprivacy` is valid, attached to the generated iOS Xcode App resource phase, and proven by CI to be bundled at the root of the compiled `.app`.
 - [x] Master Release 1 stopwatch/controller SVG and 1024px raster app-icon source derived from approved v1 identity rules; PWA/native packaging no longer uses generic Capacitor branding.
+- [x] PWA manifest includes explicit 192×192 and 512×512 PNG install icons plus the scalable maskable SVG; tests verify manifest entries and PNG signatures.
 - [x] First-party `/accessibility` page implemented and linked from web/native footer.
 - [x] Six named optional branded themes are explicitly deferred from first store build because v1.0 provides names but not exact palette definitions. Release 1 ships approved Light/Dark/System semantic CI rather than inventing colors.
 - [ ] Full real keyboard/screen-reader/text-scale/contrast audit on supported browsers/devices.
@@ -78,7 +84,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Supabase room/participant/game persistence with restrictive RLS and private realtime boundary.
 - [x] Supabase project remains ACTIVE_HEALTHY under organization **TopChain AI Lab** with the same project reference and database endpoint.
 - [x] Live Supabase schema security/performance advisors have no warning-level findings; only expected informational server-only/unused-index notices remain before traffic.
-- [x] Repository migrations 001–016 reproduce live security, indexes, RLS performance fixes, recovery fields, photo lock, and privacy-request schema.
+- [x] Repository migrations 001–016 reproduce the live Release 1 security/recovery/privacy state, including restored `005_release11_content_foundation.sql` for the dormant server-only Word/Math tables that existed outside tracked migration history.
 - [x] Host magic-link auth and invisible anonymous Player auth.
 - [x] Native Host magic-link deep-link callback and single shared native Supabase session/client.
 - [x] Database-backed rate limits for high-impact room/join/control/moderation operations plus Quick Draw event flood limits.
@@ -90,6 +96,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Strict mobile release environment validator rejects localhost/example/non-HTTPS/missing public Supabase settings.
 - [x] One-command `npm run release:preflight` combines production env validation, TypeScript/tests/build, and release mobile bundle build.
 - [x] One-command `npm run staging:smoke` verifies health/legal/support/accessibility/account surfaces after an HTTPS deployment exists.
+- [x] Source-control scan found no committed live Supabase project reference, service-role secret, or JWT-like credential pattern.
 - [ ] End-to-end account-erasure validation against staging/native device.
 - [ ] Load/reconnect/stale-seat tests under realistic concurrency.
 
@@ -100,6 +107,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Store metadata/privacy/data-safety working drafts versioned and refreshed in `docs/`.
 - [x] Privacy/account-deletion paths implemented for Apple/Google review requirements.
 - [x] First-party Support, Privacy Policy, Terms, Account/Data and Accessibility URL paths are implemented.
+- [x] Apple app privacy manifest source is versioned and native CI verifies it is in the built app bundle.
 - [ ] Production HTTPS domain/hosting deployment and environment secrets. Connected Vercel team currently has no project; the connector's deployment action remains internally invalid because its visible schema omits required `target`, `name`, and `files` fields.
 - [ ] Domain purchase if desired. `timefillergames.com` was available when checked; purchase requires explicit account-owner payment approval.
 - [ ] Real support email/contact identity for store listing/support page. Do not invent a personal/company contact.
