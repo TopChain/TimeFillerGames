@@ -1,14 +1,20 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 const RELEASE_VERSION = '1.0.0';
 const RELEASE_BUILD = 1;
+const MASTER_ICON = 'assets/native/timefillergames-app-icon-1024.png';
 
-function updateFile(path, transform) {
-  if (!fs.existsSync(path)) return false;
-  const before = fs.readFileSync(path, 'utf8');
+function updateFile(filePath, transform) {
+  if (!fs.existsSync(filePath)) return false;
+  const before = fs.readFileSync(filePath, 'utf8');
   const after = transform(before);
-  if (after !== before) fs.writeFileSync(path, after);
+  if (after !== before) fs.writeFileSync(filePath, after);
   return true;
+}
+
+function ensureDir(dir) {
+  fs.mkdirSync(dir, { recursive: true });
 }
 
 const androidVars = 'android/variables.gradle';
@@ -37,6 +43,25 @@ updateFile(androidManifest, (text) => {
   return next;
 });
 
+if (fs.existsSync('android') && fs.existsSync(MASTER_ICON)) {
+  const drawableDir = 'android/app/src/main/res/drawable-nodpi';
+  ensureDir(drawableDir);
+  fs.copyFileSync(MASTER_ICON, path.join(drawableDir, 'timefillergames_launcher.png'));
+
+  const valuesDir = 'android/app/src/main/res/values';
+  ensureDir(valuesDir);
+  fs.writeFileSync(path.join(valuesDir, 'timefillergames_launcher.xml'), '<resources>\n  <color name="timefillergames_launcher_background">#5B5DEE</color>\n</resources>\n');
+
+  for (const file of [
+    'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
+    'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml',
+  ]) {
+    updateFile(file, (text) => text
+      .replace(/<background android:drawable="[^"]+"\s*\/>/, '<background android:drawable="@color/timefillergames_launcher_background" />')
+      .replace(/<foreground android:drawable="[^"]+"\s*\/>/, '<foreground android:drawable="@drawable/timefillergames_launcher" />'));
+  }
+}
+
 const iosPlist = 'ios/App/App/Info.plist';
 updateFile(iosPlist, (text) => {
   let next = text;
@@ -54,4 +79,21 @@ updateFile(iosProject, (text) => text
   .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${RELEASE_VERSION};`)
   .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${RELEASE_BUILD};`));
 
-console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), TimeFillerGames URL scheme, and iOS camera purpose string.`);
+const iosIconContents = 'ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json';
+if (fs.existsSync(iosIconContents) && fs.existsSync(MASTER_ICON)) {
+  const contents = JSON.parse(fs.readFileSync(iosIconContents, 'utf8'));
+  const iconDir = path.dirname(iosIconContents);
+  const images = Array.isArray(contents.images) ? contents.images : [];
+  const namedImages = images.filter((image) => typeof image.filename === 'string');
+  const unsupported = namedImages.filter((image) => {
+    const pointSize = Number(String(image.size ?? '').split('x')[0]);
+    const scale = Number(String(image.scale ?? '1x').replace('x', ''));
+    return Number.isFinite(pointSize) && Number.isFinite(scale) && pointSize * scale !== 1024;
+  });
+  if (unsupported.length) {
+    throw new Error('Generated iOS AppIcon catalog requires legacy raster sizes. Add approved derived sizes before release packaging.');
+  }
+  for (const image of namedImages) fs.copyFileSync(MASTER_ICON, path.join(iconDir, image.filename));
+}
+
+console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), master launcher icon, TimeFillerGames URL scheme, and iOS camera purpose string.`);
