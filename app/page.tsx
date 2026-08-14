@@ -5,10 +5,10 @@ import { HostFlowV2 } from '@/components/host-flow-v2';
 import { PlayerFlow } from '@/components/player-flow';
 import { RecoveredHostFlow } from '@/components/recovered-host-flow';
 import { GAMES, LOCALES, TIME_PRESETS, type Locale, type TimePreset } from '@/lib/product';
+import { isRelease1Game } from '@/lib/release1-policy';
 import { SHELL_UI_COPY } from '@/lib/shell-ui-copy';
 
 const UI_LOCALE_KEY = 'timefillergames:ui-locale';
-const RELEASE1_IDS = new Set(['bingo','majority-match','quick-draw']);
 type Mode = 'home' | 'host' | 'player' | 'recovered-host';
 
 export default function HomePage() {
@@ -17,7 +17,7 @@ export default function HomePage() {
   const [minutes, setMinutes] = useState<TimePreset>(5);
   const [locale, setLocale] = useState<Locale>('en');
   const copy = SHELL_UI_COPY[locale];
-  const compatible = useMemo(() => GAMES.filter((game) => game.times.includes(minutes) && RELEASE1_IDS.has(game.id)), [minutes]);
+  const compatible = useMemo(() => GAMES.filter((game) => game.times.includes(minutes) && isRelease1Game(game.id)), [minutes]);
 
   useEffect(() => {
     const saved = localStorage.getItem(UI_LOCALE_KEY) as Locale | null;
