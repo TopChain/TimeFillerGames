@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 describe('store reviewer access contract', () => {
   const envExample = readFileSync('.env.example', 'utf8');
   const layout = readFileSync('app/layout.tsx', 'utf8');
+  const mobileMain = readFileSync('mobile/src/main.tsx', 'utf8');
   const source = readFileSync('components/reviewer-access.tsx', 'utf8');
 
   it('keeps reviewer access disabled by default', () => {
@@ -12,9 +13,11 @@ describe('store reviewer access contract', () => {
     expect(source).toContain('if (!REVIEW_ACCESS_ENABLED) return null');
   });
 
-  it('mounts the review-only access path globally for store builds', () => {
+  it('mounts the review-only access path in both web and native store builds', () => {
     expect(layout).toContain("import { ReviewerAccess } from '@/components/reviewer-access'");
     expect(layout).toContain('<ReviewerAccess />');
+    expect(mobileMain).toContain("import {ReviewerAccess} from '../../components/reviewer-access'");
+    expect(mobileMain).toContain('<ReviewerAccess/>');
   });
 
   it('uses runtime credentials with the real Supabase Host session and stores no demo password', () => {
