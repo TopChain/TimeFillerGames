@@ -104,8 +104,13 @@ if (recoveredRoom?.viewer?.isHost !== true || recoveredRoom?.room?.status !== 'p
 const recoveredGame = await api(`/api/rooms/${encodeURIComponent(roomCode)}/games/majority-match`, cohost.token);
 if (recoveredGame?.session?.status !== 'paused') throw new Error('Recovered Majority Match session was not paused');
 
-const oldHostView = await api(`/api/rooms/${encodeURIComponent(roomCode)}`, host.token);
-if (oldHostView?.viewer?.isHost !== false) throw new Error('Original stale Host retained Host authority after transfer');
+const oldHostResponse = await fetch(`${appUrl}/api/rooms/${encodeURIComponent(roomCode)}`, {
+  headers: { authorization: `Bearer ${host.token}` },
+});
+if (oldHostResponse.status !== 403) {
+  const oldHostPayload = await oldHostResponse.json().catch(() => ({}));
+  throw new Error(`Original stale Host retained room access after transfer: ${oldHostResponse.status} ${JSON.stringify(oldHostPayload)}`);
+}
 
 await admin.from('rooms').delete().eq('id', recoveredRoom.room.id);
 for (const identity of [host, cohost, player2, player3]) await admin.auth.admin.deleteUser(identity.userId);
