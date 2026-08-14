@@ -5,7 +5,10 @@ on:
     paths:
       - 'supabase/**'
       - 'scripts/verify-local-supabase.mjs'
+      - 'scripts/verify-local-api-e2e.mjs'
       - '.github/workflows/supabase-integration.yml'
+      - 'app/api/**'
+      - 'lib/**'
       - 'package.json'
       - 'package-lock.json'
   workflow_dispatch:
@@ -16,7 +19,7 @@ permissions:
 jobs:
   local-supabase:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
 
@@ -61,12 +64,47 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           node scripts/verify-local-supabase.mjs
 
-      - name: Print Supabase logs on failure
+      - name: Verify Host, room, Player, privacy and Bingo APIs end to end
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          NEXT_PUBLIC_SUPABASE_URL="$API_URL" \
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$ANON_KEY" \
+          NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          NEXT_PUBLIC_APP_URL="http://127.0.0.1:3000" \
+          npm run dev -- --hostname 127.0.0.1 > /tmp/next.log 2>&1 &
+          echo $! > /tmp/next.pid
+
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:3000/api/health > /tmp/health.json; then
+              break
+            fi
+            if [ "$attempt" = "45" ]; then
+              cat /tmp/next.log
+              exit 1
+            fi
+            sleep 2
+          done
+
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          APP_BASE_URL="http://127.0.0.1:3000" \
+          node scripts/verify-local-api-e2e.mjs
+
+      - name: Print integration logs on failure
         if: failure()
         run: |
           cat /tmp/erase-account.log 2>/dev/null || true
+          cat /tmp/next.log 2>/dev/null || true
+          cat /tmp/function-probe.json 2>/dev/null || true
+          cat /tmp/health.json 2>/dev/null || true
           supabase status || true
 
-      - name: Stop local Supabase stack
+      - name: Stop local services
         if: always()
-        run: supabase stop --no-backup || true
+        run: |
+          kill "$(cat /tmp/next.pid 2>/dev/null)" 2>/dev/null || true
+          kill "$(cat /tmp/erase-account.pid 2>/dev/null)" 2>/dev/null || true
+          supabase stop --no-backup || true
