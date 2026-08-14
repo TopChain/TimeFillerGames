@@ -37,17 +37,31 @@ const { data: room, error: roomError } = await admin
   .single();
 if (roomError || !room) throw roomError ?? new Error('Could not create disposable hosted room');
 
-const response = await fetch(`${url}/functions/v1/erase-account`, {
-  method: 'POST',
-  headers: {
-    Authorization: `Bearer ${accessToken}`,
-    apikey: anonKey,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({ source: 'app' }),
-});
-const body = await response.json().catch(() => ({}));
-if (!response.ok || body?.ok !== true) {
+let response;
+let body = {};
+let sawTransientUpstreamFailure = false;
+for (let attempt = 1; attempt <= 15; attempt += 1) {
+  response = await fetch(`${url}/functions/v1/erase-account`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      apikey: anonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ source: 'app' }),
+  });
+  body = await response.json().catch(() => ({}));
+  if (![502, 503, 504].includes(response.status)) break;
+  sawTransientUpstreamFailure = true;
+  if (attempt < 15) await new Promise((resolve) => setTimeout(resolve, 1_000));
+}
+if (!response) throw new Error('erase-account did not return a response');
+
+// A retry can receive 401 if the first upstream response was lost after the
+// function deleted the identity. The strict database/Auth checks below still
+// prove whether erasure actually completed.
+const possibleLostSuccessResponse = sawTransientUpstreamFailure && response.status === 401;
+if ((!response.ok || body?.ok !== true) && !possibleLostSuccessResponse) {
   throw new Error(`erase-account failed: HTTP ${response.status} ${JSON.stringify(body)}`);
 }
 
