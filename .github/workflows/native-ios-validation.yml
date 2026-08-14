@@ -46,7 +46,10 @@ jobs:
           grep -q 'CURRENT_PROJECT_VERSION = 1;' ios/App/App.xcodeproj/project.pbxproj
           plutil -lint ios/App/App/PrivacyInfo.xcprivacy
           grep -q 'NSPrivacyCollectedDataTypeEmailAddress' ios/App/App/PrivacyInfo.xcprivacy
+          grep -q 'NSPrivacyCollectedDataTypeUserID' ios/App/App/PrivacyInfo.xcprivacy
           grep -q 'NSPrivacyCollectedDataTypeGameplayContent' ios/App/App/PrivacyInfo.xcprivacy
+          grep -q 'NSPrivacyCollectedDataTypeProductInteraction' ios/App/App/PrivacyInfo.xcprivacy
+          grep -q 'NSPrivacyCollectedDataTypeOtherDiagnosticData' ios/App/App/PrivacyInfo.xcprivacy
           grep -q '<key>NSPrivacyTracking</key>' ios/App/App/PrivacyInfo.xcprivacy
       - name: Compile unsigned iOS simulator build
         run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath "$RUNNER_TEMP/DerivedData" CODE_SIGNING_ALLOWED=NO build
