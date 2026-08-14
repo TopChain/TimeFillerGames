@@ -1,0 +1,13 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import HomePage from '../../app/page';
+import {AppearanceControl} from '../../components/appearance-control';
+import {CoHostRecoveryAgentV3} from '../../components/cohost-recovery-agent-v3';
+import {PrivacyControls} from '../../components/privacy-controls';
+import {ReviewerAccess} from '../../components/reviewer-access';
+import {SiteLegalFooter} from '../../components/site-legal-footer';
+import {installMobileApiFetch} from './api-fetch';
+import {NativeShellV2} from './native-shell-v2';
+import '../../app/globals.css';import '../../app/quick-draw.css';import '../../app/people-bingo.css';import '../../app/room-qr.css';import '../../app/host-moderation.css';import '../../app/cohost-recovery.css';import '../../app/accessibility.css';import '../../app/appearance.css';import './mobile.css';
+installMobileApiFetch();
+const root=document.getElementById('root');if(!root)throw new Error('Mobile app root is missing.');createRoot(root).render(<React.StrictMode><NativeShellV2><HomePage/><SiteLegalFooter/><AppearanceControl/><CoHostRecoveryAgentV3/><PrivacyControls/><ReviewerAccess/></NativeShellV2></React.StrictMode>);

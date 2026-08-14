@@ -1,0 +1,118 @@
+name: Native Android CI
+
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'assets/native/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.json'
+      - 'scripts/configure-native.mjs'
+      - 'scripts/configure-native-release.mjs'
+      - '.github/workflows/native-android-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run mobile:build
+        env:
+          VITE_API_BASE_URL: https://api.example.invalid
+          VITE_APP_URL: https://app.example.invalid
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+          VITE_AUTH_REDIRECT_URL: timefillergames://auth/callback
+          VITE_REVIEW_ACCESS_ENABLED: 'true'
+      - run: npx cap add android
+      - run: npm run mobile:configure-native
+      - name: Verify Android release configuration
+        run: |
+          grep -q 'minSdkVersion = 26' android/variables.gradle
+          grep -q 'compileSdkVersion = 36' android/variables.gradle
+          grep -q 'targetSdkVersion = 36' android/variables.gradle
+          grep -q 'android:scheme="timefillergames"' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:usesCleartextTraffic="false"' android/app/src/main/AndroidManifest.xml
+          grep -Eq 'versionCode[[:space:]]+1' android/app/build.gradle
+          grep -Eq 'versionName[[:space:]]+"1.0.0"' android/app/build.gradle
+          test -s android/app/src/main/res/drawable/timefillergames_launcher.xml
+          grep -q '#22D3C5' android/app/src/main/res/drawable/timefillergames_launcher.xml
+          grep -q '@drawable/timefillergames_launcher' android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          agp="$(grep -oE 'com\.android\.tools\.build:gradle:[0-9.]+' android/build.gradle | head -n1 | awk -F: '{print $3}')"
+          test -n "$agp"
+          python3 - "$agp" <<'PY'
+          import sys
+          version = tuple(int(x) for x in sys.argv[1].split('.'))
+          if version < (8, 5, 1):
+              raise SystemExit(f'Android Gradle Plugin {sys.argv[1]} is below the 8.5.1 minimum for reliable 16 KB Play packaging.')
+          print(f'AGP {sys.argv[1]} supports 16 KB shared-library packaging.')
+          PY
+      - name: Compile Android debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - name: Audit merged Android permissions
+        run: |
+          manifest="$(find android/app/build/intermediates -type f -name AndroidManifest.xml | grep -E '/merged_manifest(s)?/' | head -n 1)"
+          test -n "$manifest"
+          echo "Merged manifest: $manifest"
+          grep -oE 'android\.permission\.[A-Z0-9_.]+' "$manifest" | sort -u || true
+          grep -q 'android.permission.INTERNET' "$manifest"
+          grep -q 'android.permission.CAMERA' "$manifest"
+          forbidden='ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|ACCESS_BACKGROUND_LOCATION|RECORD_AUDIO|READ_CONTACTS|WRITE_CONTACTS|GET_ACCOUNTS|READ_CALENDAR|WRITE_CALENDAR|READ_PHONE_STATE|READ_PHONE_NUMBERS|CALL_PHONE|ANSWER_PHONE_CALLS|READ_CALL_LOG|WRITE_CALL_LOG|READ_SMS|RECEIVE_SMS|SEND_SMS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_IMAGES|READ_MEDIA_VIDEO|READ_MEDIA_AUDIO|BODY_SENSORS|ACTIVITY_RECOGNITION|AD_ID|POST_NOTIFICATIONS|BLUETOOTH_SCAN|BLUETOOTH_CONNECT|BLUETOOTH_ADVERTISE|NEARBY_WIFI_DEVICES|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW|SCHEDULE_EXACT_ALARM|USE_EXACT_ALARM|PACKAGE_USAGE_STATS'
+          if grep -Eq "android\.permission\.(${forbidden})" "$manifest"; then
+            echo 'Unexpected sensitive or unnecessary Android permission detected.' >&2
+            grep -oE 'android\.permission\.[A-Z0-9_.]+' "$manifest" | sort -u >&2
+            exit 1
+          fi
+      - name: Verify Android 16 KB page-size packaging and ELF alignment
+        run: |
+          apk="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$apk"
+          zipalign="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n1)"
+          test -x "$zipalign"
+          "$zipalign" -c -P 16 -v 4 "$apk"
+
+          temp="$(mktemp -d)"
+          unzip -q "$apk" 'lib/*/*.so' -d "$temp" 2>/dev/null || true
+          native_count=0
+          while IFS= read -r so; do
+            case "$so" in
+              */arm64-v8a/*|*/x86_64/*)
+                native_count=$((native_count + 1))
+                echo "Checking ELF alignment: $so"
+                while read -r alignment; do
+                  python3 - "$alignment" "$so" <<'PY'
+          import sys
+          align = int(sys.argv[1], 16)
+          if align < 0x4000:
+              raise SystemExit(f'{sys.argv[2]} has ELF LOAD alignment {sys.argv[1]} below 0x4000 (16 KB).')
+          PY
+                done < <(readelf -lW "$so" | awk '$1 == "LOAD" {print $NF}')
+                ;;
+            esac
+          done < <(find "$temp" -type f -name '*.so' | sort)
+          echo "Checked $native_count 64-bit native libraries for 16 KB ELF LOAD alignment."
+      - name: Compile Google Play release bundle
+        working-directory: android
+        run: ./gradlew bundleRelease
+      - name: Retain unsigned Play-format AAB
+        uses: actions/upload-artifact@v7
+        with:
+          name: timefillergames-android-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 7

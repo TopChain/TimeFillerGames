@@ -1,0 +1,123 @@
+name: Native iOS Validation
+
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'assets/native/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.json'
+      - 'scripts/configure-native.mjs'
+      - 'scripts/configure-native-release.mjs'
+      - 'scripts/flatten-ios-icon.swift'
+      - '.github/workflows/native-ios-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios-native:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify Capacitor SDK privacy manifest exists
+        run: |
+          find node_modules/@capacitor -name PrivacyInfo.xcprivacy -type f -print
+          test "$(find node_modules/@capacitor -name PrivacyInfo.xcprivacy -type f | wc -l | tr -d ' ')" -ge 1
+      - run: npm run mobile:build
+        env:
+          VITE_API_BASE_URL: https://api.example.invalid
+          VITE_APP_URL: https://app.example.invalid
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+          VITE_AUTH_REDIRECT_URL: timefillergames://auth/callback
+          VITE_REVIEW_ACCESS_ENABLED: 'true'
+      - run: npx cap add ios
+      - run: npm run mobile:configure-native
+      - name: Verify iOS release configuration
+        run: |
+          grep -q 'NSCameraUsageDescription' ios/App/App/Info.plist
+          grep -q '<string>timefillergames</string>' ios/App/App/Info.plist
+          grep -q 'MARKETING_VERSION = 1.0.0;' ios/App/App.xcodeproj/project.pbxproj
+          grep -q 'CURRENT_PROJECT_VERSION = 1;' ios/App/App.xcodeproj/project.pbxproj
+          plutil -lint ios/App/App/PrivacyInfo.xcprivacy
+          grep -q 'NSPrivacyCollectedDataTypeEmailAddress' ios/App/App/PrivacyInfo.xcprivacy
+          grep -q 'NSPrivacyCollectedDataTypeUserID' ios/App/App/PrivacyInfo.xcprivacy
+          grep -q 'NSPrivacyCollectedDataTypeGameplayContent' ios/App/App/PrivacyInfo.xcprivacy
+          grep -q 'NSPrivacyCollectedDataTypeProductInteraction' ios/App/App/PrivacyInfo.xcprivacy
+          grep -q 'NSPrivacyCollectedDataTypeOtherDiagnosticData' ios/App/App/PrivacyInfo.xcprivacy
+          grep -q '<key>NSPrivacyTracking</key>' ios/App/App/PrivacyInfo.xcprivacy
+      - name: Reject unnecessary iOS sensitive permissions and insecure ATS overrides
+        run: |
+          forbidden='NSMicrophoneUsageDescription|NSLocationWhenInUseUsageDescription|NSLocationAlwaysUsageDescription|NSLocationAlwaysAndWhenInUseUsageDescription|NSPhotoLibraryUsageDescription|NSPhotoLibraryAddUsageDescription|NSContactsUsageDescription|NSCalendarsUsageDescription|NSRemindersUsageDescription|NSBluetoothAlwaysUsageDescription|NSBluetoothPeripheralUsageDescription|NSSpeechRecognitionUsageDescription|NSHealthShareUsageDescription|NSHealthUpdateUsageDescription|NSMotionUsageDescription'
+          if grep -Eq "$forbidden" ios/App/App/Info.plist; then
+            echo 'Unexpected sensitive iOS usage description detected.' >&2
+            grep -E "$forbidden" ios/App/App/Info.plist >&2 || true
+            exit 1
+          fi
+          for key in NSAllowsArbitraryLoads NSAllowsArbitraryLoadsInWebContent NSAllowsLocalNetworking; do
+            value="$(/usr/libexec/PlistBuddy -c "Print :NSAppTransportSecurity:${key}" ios/App/App/Info.plist 2>/dev/null || true)"
+            if [ "$value" = "true" ]; then
+              echo "Insecure App Transport Security override detected: ${key}=true" >&2
+              exit 1
+            fi
+          done
+      - name: Verify App Store icons are opaque 1024px PNGs
+        run: |
+          found=0
+          for icon in ios/App/App/Assets.xcassets/AppIcon.appiconset/*.png; do
+            test -f "$icon" || continue
+            found=1
+            test "$(sips -g pixelWidth "$icon" | awk '/pixelWidth/ {print $2}')" = "1024"
+            test "$(sips -g pixelHeight "$icon" | awk '/pixelHeight/ {print $2}')" = "1024"
+            test "$(sips -g hasAlpha "$icon" | awk '/hasAlpha/ {print $2}')" = "no"
+          done
+          test "$found" = "1"
+      - name: Resolve iOS package dependencies with retry
+        run: |
+          for attempt in 1 2 3; do
+            if xcodebuild \
+              -resolvePackageDependencies \
+              -project ios/App/App.xcodeproj \
+              -scheme App; then
+              exit 0
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo 'Unable to resolve iOS packages after three attempts.' >&2
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
+      - name: Compile unsigned iOS simulator build
+        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator -configuration Debug -derivedDataPath "$RUNNER_TEMP/DerivedData" -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO build
+      - name: Verify simulator privacy manifest is bundled at app root
+        run: |
+          test -s "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app/PrivacyInfo.xcprivacy"
+          plutil -lint "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app/PrivacyInfo.xcprivacy"
+      - name: Compile unsigned App Store-style iOS device archive
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/TimeFillerGames.xcarchive" \
+            -disableAutomaticPackageResolution \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            archive
+      - name: Verify device archive app and privacy manifest
+        run: |
+          app="$RUNNER_TEMP/TimeFillerGames.xcarchive/Products/Applications/App.app"
+          test -d "$app"
+          test -s "$app/PrivacyInfo.xcprivacy"
+          plutil -lint "$app/PrivacyInfo.xcprivacy"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" = "com.timefillergames.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = "1.0.0"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = "1"

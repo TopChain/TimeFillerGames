@@ -1,0 +1,30 @@
+name: Mobile CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run mobile:build
+        env:
+          VITE_API_BASE_URL: https://api.example.invalid
+          VITE_APP_URL: https://app.example.invalid
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+          VITE_AUTH_REDIRECT_URL: timefillergames://auth/callback
+          VITE_REVIEW_ACCESS_ENABLED: 'true'
+      - name: Verify reusable store reviewer access is bundled
+        run: grep -R -q 'Store review access' mobile/dist
