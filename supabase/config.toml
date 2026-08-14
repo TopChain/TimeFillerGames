@@ -1,0 +1,11 @@
+project_id = "timefillergames-local"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000", "timefillergames://auth/callback"]
+enable_signup = true
+enable_anonymous_sign_ins = true
+
+[functions.erase-account]
+verify_jwt = true
