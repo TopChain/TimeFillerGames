@@ -37,6 +37,7 @@ jobs:
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
           VITE_AUTH_REDIRECT_URL: timefillergames://auth/callback
+          VITE_REVIEW_ACCESS_ENABLED: 'true'
       - run: npx cap add android
       - run: npm run mobile:configure-native
       - name: Verify Android release configuration
@@ -51,6 +52,15 @@ jobs:
           test -s android/app/src/main/res/drawable/timefillergames_launcher.xml
           grep -q '#22D3C5' android/app/src/main/res/drawable/timefillergames_launcher.xml
           grep -q '@drawable/timefillergames_launcher' android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          agp="$(grep -oE 'com\.android\.tools\.build:gradle:[0-9.]+' android/build.gradle | head -n1 | awk -F: '{print $3}')"
+          test -n "$agp"
+          python3 - "$agp" <<'PY'
+          import sys
+          version = tuple(int(x) for x in sys.argv[1].split('.'))
+          if version < (8, 5, 1):
+              raise SystemExit(f'Android Gradle Plugin {sys.argv[1]} is below the 8.5.1 minimum for reliable 16 KB Play packaging.')
+          print(f'AGP {sys.argv[1]} supports 16 KB shared-library packaging.')
+          PY
       - name: Compile Android debug APK
         working-directory: android
         run: ./gradlew assembleDebug
@@ -68,6 +78,34 @@ jobs:
             grep -oE 'android\.permission\.[A-Z0-9_.]+' "$manifest" | sort -u >&2
             exit 1
           fi
+      - name: Verify Android 16 KB page-size packaging and ELF alignment
+        run: |
+          apk="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$apk"
+          zipalign="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n1)"
+          test -x "$zipalign"
+          "$zipalign" -c -P 16 -v 4 "$apk"
+
+          temp="$(mktemp -d)"
+          unzip -q "$apk" 'lib/*/*.so' -d "$temp" 2>/dev/null || true
+          native_count=0
+          while IFS= read -r so; do
+            case "$so" in
+              */arm64-v8a/*|*/x86_64/*)
+                native_count=$((native_count + 1))
+                echo "Checking ELF alignment: $so"
+                while read -r alignment; do
+                  python3 - "$alignment" "$so" <<'PY'
+          import sys
+          align = int(sys.argv[1], 16)
+          if align < 0x4000:
+              raise SystemExit(f'{sys.argv[2]} has ELF LOAD alignment {sys.argv[1]} below 0x4000 (16 KB).')
+          PY
+                done < <(readelf -lW "$so" | awk '$1 == "LOAD" {print $NF}')
+                ;;
+            esac
+          done < <(find "$temp" -type f -name '*.so' | sort)
+          echo "Checked $native_count 64-bit native libraries for 16 KB ELF LOAD alignment."
       - name: Compile Google Play release bundle
         working-directory: android
         run: ./gradlew bundleRelease
