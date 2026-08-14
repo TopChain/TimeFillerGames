@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { drawNextBingo, endBingo, fetchBingo, startBingo, type BingoSnapshot } from '@/lib/client-bingo';
 import { HOST_GAME_UI_COPY } from '@/lib/host-game-ui-copy';
-import type { Locale } from '@/lib/product';
+import { useHostUiLocale } from '@/lib/use-host-ui-locale';
 
-export function BingoHostPanel({ accessToken, roomCode, boardSize, cardChoiceSeconds, locale = 'en', onEnded }: { accessToken: string; roomCode: string; boardSize: number; cardChoiceSeconds: number; locale?: Locale; onEnded?: () => void }) {
+export function BingoHostPanel({ accessToken, roomCode, boardSize, cardChoiceSeconds, onEnded }: { accessToken: string; roomCode: string; boardSize: number; cardChoiceSeconds: number; onEnded?: () => void }) {
+  const locale = useHostUiLocale();
   const copy = HOST_GAME_UI_COPY[locale];
   const [snapshot, setSnapshot] = useState<BingoSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
