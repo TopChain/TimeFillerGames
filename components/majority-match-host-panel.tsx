@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { endMajorityClient, fetchMajorityMatch, nextMajorityClient, revealMajorityClient, type MajoritySnapshot } from '@/lib/client-majority-match';
 import { HOST_GAME_UI_COPY } from '@/lib/host-game-ui-copy';
-import type { Locale } from '@/lib/product';
+import { useHostUiLocale } from '@/lib/use-host-ui-locale';
 
-export function MajorityMatchHostPanel({ accessToken, roomCode, locale = 'en', onEnded }: { accessToken: string; roomCode: string; locale?: Locale; onEnded?: () => void }) {
+export function MajorityMatchHostPanel({ accessToken, roomCode, onEnded }: { accessToken: string; roomCode: string; onEnded?: () => void }) {
+  const locale = useHostUiLocale();
   const copy = HOST_GAME_UI_COPY[locale];
   const [snapshot, setSnapshot] = useState<MajoritySnapshot | null>(null);
   const [busy, setBusy] = useState(false);
