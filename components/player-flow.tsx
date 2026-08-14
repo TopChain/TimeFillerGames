@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LOCALES, type Locale } from '@/lib/product';
-import { STRINGS } from '@/lib/i18n';
+import { PLAYER_SHELL_UI_COPY } from '@/lib/player-shell-ui-copy';
 import { AVATARS, disambiguateNickname, generateNickname, getGame, nicknameIssue, normalizeRoomCode, type Avatar } from '@/lib/room-flow';
 import { fetchRoomSnapshot, heartbeatRoom, joinLiveRoom, leaveLiveRoom, reconnectLiveRoom, setReadyState, type LiveRoom, type ParticipantSession, type RoomSnapshot } from '@/lib/client-room';
 import { currentSession, ensureParticipantSession, hasBrowserSupabaseConfig } from '@/lib/supabase/browser';
@@ -13,14 +13,6 @@ import { MajorityMatchPlayerPanel } from '@/components/majority-match-player-pan
 import { MajorityMatchResultsPanel } from '@/components/majority-match-results-panel';
 import { QuickDrawPlayerPanel } from '@/components/quick-draw-player-panel';
 import { QuickDrawResultsPanel } from '@/components/quick-draw-results-panel';
-
-const CATEGORY_LABELS: Record<Avatar['category'], string> = {
-  'chinese-zodiac': 'Chinese zodiac',
-  'western-zodiac': 'Western zodiac',
-  animals: 'Animals',
-  vegetables: 'Vegetables',
-  fruits: 'Fruits',
-};
 
 function seatStorageKey(roomCode: string) { return `timefillergames:seat:${roomCode}`; }
 
@@ -41,7 +33,7 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const copy = STRINGS[locale];
+  const copy = PLAYER_SHELL_UI_COPY[locale];
   const normalizedCode = normalizeRoomCode(roomCode);
   const avatars = useMemo(() => AVATARS.filter((avatar) => avatar.category === category), [category]);
   const selectedAvatar = AVATARS.find((avatar) => avatar.id === avatarId) ?? AVATARS[0];
@@ -53,6 +45,10 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
     const code = normalizeRoomCode(query.get('join') ?? query.get('room') ?? '');
     if (code) setRoomCode(code);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const refreshSnapshot = useCallback(async () => {
     if (!room || !accessToken) return;
@@ -66,9 +62,9 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
         setParticipant((current) => current ? { ...current, ...own, session_token: current.session_token } : current);
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not refresh room state.');
+      setError(cause instanceof Error ? cause.message : copy.refreshFailed);
     }
-  }, [accessToken, participant?.id, room]);
+  }, [accessToken, copy.refreshFailed, participant?.id, room]);
 
   useEffect(() => {
     if (!room || !participant || !accessToken || !authUserId || room.status === 'closed') return;
@@ -91,22 +87,22 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
       onPresence: () => void refreshSnapshot(),
       onStatus: setRealtimeStatus,
     }).then((unsubscribe) => { if (cancelled) void unsubscribe(); else cleanup = unsubscribe; })
-      .catch((cause) => setError(cause instanceof Error ? cause.message : 'Realtime connection failed.'));
+      .catch((cause) => setError(cause instanceof Error ? cause.message : copy.realtimeFailed));
     return () => {
       cancelled = true;
       window.clearInterval(heartbeatTimer);
       window.clearInterval(snapshotTimer);
       if (cleanup) void cleanup();
     };
-  }, [accessToken, authUserId, participant?.id, participant?.session_token, room?.id, room?.join_code, room?.status, refreshSnapshot]);
+  }, [accessToken, authUserId, copy.realtimeFailed, participant?.id, participant?.nickname, participant?.role, participant?.session_token, room?.id, room?.join_code, room?.status, refreshSnapshot]);
 
   useEffect(() => {
     if (!room || step < 3) return;
     if (room.status === 'lobby') setStep(3);
     if (room.status === 'playing' || room.status === 'paused') setStep(4);
     if (room.status === 'results') setStep(5);
-    if (room.status === 'closed') setError('The Host ended this room.');
-  }, [room?.status, step]);
+    if (room.status === 'closed') setError(copy.hostEnded);
+  }, [copy.hostEnded, room?.status, step]);
 
   function selectAvatar(avatar: Avatar) {
     setAvatarId(avatar.id);
@@ -132,7 +128,7 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      if (!hasBrowserSupabaseConfig()) throw new Error('The staging Supabase connection has not been configured yet.');
+      if (!hasBrowserSupabaseConfig()) throw new Error(copy.supabaseMissing);
       const session = await currentSession();
       const stored = window.localStorage.getItem(seatStorageKey(normalizedCode));
       if (session && stored) {
@@ -146,7 +142,7 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
       }
       setStep(1);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not continue.');
+      setError(cause instanceof Error ? cause.message : copy.continueFailed);
     } finally {
       setBusy(false);
     }
@@ -161,14 +157,14 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
       window.localStorage.setItem(seatStorageKey(result.room.join_code), result.participant.session_token);
       applyRecoveredIdentity(result.room, { ...result.participant, ready: Boolean(result.participant.ready) }, session.access_token, session.user.id);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not join room.');
+      setError(cause instanceof Error ? cause.message : copy.joinFailed);
     } finally {
       setBusy(false);
     }
   }
 
   async function toggleReady() {
-    if (!room || !participant || !accessToken || participant.role !== 'participant') return;
+    if (!room || !participant || !accessToken || (participant.role !== 'participant' && participant.role !== 'cohost')) return;
     setBusy(true);
     setError(null);
     try {
@@ -177,7 +173,7 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
       setReady(result.participant.ready);
       await refreshSnapshot();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not update Ready state.');
+      setError(cause instanceof Error ? cause.message : copy.readyFailed);
     } finally {
       setBusy(false);
     }
@@ -191,25 +187,27 @@ export function PlayerFlow({ onExit }: { onExit: () => void }) {
     onExit();
   }
 
+  const canReady = participant?.role === 'participant' || participant?.role === 'cohost';
+
   return <main className="role-shell" data-app="player">
-    <header className="role-topbar"><button className="text-button" onClick={onExit}>← TimeFillerGames</button><div className="role-title"><span className="role-dot" /> Player</div><span className="status-chip">{room ? `${room.join_code} · ${realtimeStatus}` : 'Guest · no visible account required'}</span></header>
-    <ol className="progress compact" aria-label="Player progress">{['Join','Language','Identity','Lobby','Play','Result'].map((label, index) => <li key={label} className={index === step ? 'current' : index < step ? 'done' : ''}><span>{index + 1}</span>{label}</li>)}</ol>
+    <header className="role-topbar"><button className="text-button" onClick={onExit}>← TimeFillerGames</button><div className="role-title"><span className="role-dot" /> {copy.player}</div><span className="status-chip">{room ? `${room.join_code} · ${realtimeStatus}` : copy.guest}</span></header>
+    <ol className="progress compact" aria-label={copy.player}>{copy.progress.map((label, index) => <li key={label} className={index === step ? 'current' : index < step ? 'done' : ''}><span>{index + 1}</span>{label}</li>)}</ol>
     {error && <div className="workspace player-card narrow"><div className="notice warning" role="alert">{error}</div></div>}
 
-    {step === 0 && <section className="workspace player-card narrow"><div className="eyebrow">Join quickly</div><h1>{copy.join}</h1><p className="support">Enter a PIN from the Host, scan the room QR code, or open the room link. A saved seat on this browser is recovered automatically where possible.</p><label className="form-label">{copy.roomCode}<input autoFocus inputMode="text" autoCapitalize="characters" placeholder="TFG 4821" value={roomCode} onChange={(event) => setRoomCode(event.target.value)} /></label>{roomCode && <div className="normalized-code"><span>Normalized</span><strong>{normalizedCode || '—'}</strong></div>}<button className="btn primary full-width" disabled={busy || normalizedCode.length < 4} onClick={() => void continueFromCode()}>{busy ? 'Checking room…' : copy.continue}</button></section>}
+    {step === 0 && <section className="workspace player-card narrow"><div className="eyebrow">{copy.joinQuickly}</div><h1>{copy.join}</h1><p className="support">{copy.joinHelp}</p><label className="form-label">{copy.roomCode}<input autoFocus inputMode="text" autoCapitalize="characters" placeholder="TFG 4821" value={roomCode} onChange={(event) => setRoomCode(event.target.value)} /></label>{roomCode && <div className="normalized-code"><span>{copy.normalized}</span><strong>{normalizedCode || '—'}</strong></div>}<button className="btn primary full-width" disabled={busy || normalizedCode.length < 4} onClick={() => void continueFromCode()}>{busy ? copy.checkingRoom : copy.continue}</button></section>}
 
-    {step === 1 && <section className="workspace player-card narrow"><div className="eyebrow">Personal UI</div><h1>{copy.language}</h1><p className="support">Your interface language is personal. It does not change the room language for everyone else.</p><div className="language-list">{LOCALES.map((option) => <button key={option.id} className={`language-option ${locale === option.id ? 'selected' : ''}`} onClick={() => setLocale(option.id)}><span>{option.label}</span>{locale === option.id && <strong>✓</strong>}</button>)}</div><div className="primary-row"><button className="btn secondary" onClick={() => setStep(0)}>{copy.back}</button><button className="btn primary" onClick={() => setStep(2)}>{copy.continue}</button></div></section>}
+    {step === 1 && <section className="workspace player-card narrow"><div className="eyebrow">{copy.personalUi}</div><h1>{copy.language}</h1><p className="support">{copy.languageHelp}</p><div className="language-list">{LOCALES.map((option) => <button key={option.id} className={`language-option ${locale === option.id ? 'selected' : ''}`} onClick={() => setLocale(option.id)}><span>{option.label}</span>{locale === option.id && <strong>✓</strong>}</button>)}</div><div className="primary-row"><button className="btn secondary" onClick={() => setStep(0)}>{copy.back}</button><button className="btn primary" onClick={() => setStep(2)}>{copy.continue}</button></div></section>}
 
-    {step === 2 && <section className="workspace player-card"><div className="section-heading"><div><div className="eyebrow">{copy.identity}</div><h1>{copy.avatar} + {copy.nickname}</h1></div><div className="identity-preview"><span className="avatar-large">{selectedAvatar.emoji}</span><strong>{nickname}</strong></div></div><div className="chip-row avatar-categories">{(Object.keys(CATEGORY_LABELS) as Avatar['category'][]).map((value) => <button key={value} className={`select-chip ${category === value ? 'selected' : ''}`} onClick={() => { setCategory(value); const first = AVATARS.find((avatar) => avatar.category === value)!; selectAvatar(first); }}>{CATEGORY_LABELS[value]}</button>)}</div><div className="avatar-grid">{avatars.map((avatar) => <button key={avatar.id} className={`avatar-option ${avatarId === avatar.id ? 'selected' : ''}`} aria-label={avatar.label} onClick={() => selectAvatar(avatar)}><span>{avatar.emoji}</span><small>{avatar.label}</small></button>)}</div><label className="form-label nickname-field">{copy.nickname}<input value={nickname} maxLength={24} onChange={(event) => setNickname(event.target.value)} /><small>{issue ?? 'Generated from the selected built-in avatar. The server applies room moderation rules when you join.'}</small></label><div className="notice">Photo upload remains Host-controlled and is off by default in Classroom mode. Uploaded photos are not used to infer identity, age, gender, ethnicity, or nicknames.</div><div className="primary-row"><button className="btn secondary" onClick={() => setStep(1)}>{copy.back}</button><button className="btn primary" disabled={busy || Boolean(issue)} onClick={() => void joinRoom()}>{busy ? 'Joining…' : copy.continue}</button></div></section>}
+    {step === 2 && <section className="workspace player-card"><div className="section-heading"><div><div className="eyebrow">{copy.identity}</div><h1>{copy.avatar} + {copy.nickname}</h1></div><div className="identity-preview"><span className="avatar-large">{selectedAvatar.emoji}</span><strong>{nickname}</strong></div></div><div className="chip-row avatar-categories">{(Object.keys(copy.categoryLabels) as Avatar['category'][]).map((value) => <button key={value} className={`select-chip ${category === value ? 'selected' : ''}`} onClick={() => { setCategory(value); const first = AVATARS.find((avatar) => avatar.category === value)!; selectAvatar(first); }}>{copy.categoryLabels[value]}</button>)}</div><div className="avatar-grid">{avatars.map((avatar) => <button key={avatar.id} className={`avatar-option ${avatarId === avatar.id ? 'selected' : ''}`} aria-label={avatar.label} onClick={() => selectAvatar(avatar)}><span>{avatar.emoji}</span><small>{avatar.label}</small></button>)}</div><label className="form-label nickname-field">{copy.nickname}<input value={nickname} maxLength={24} onChange={(event) => setNickname(event.target.value)} /><small>{issue ?? copy.nicknameHelp}</small></label><div className="notice">{copy.avatarPolicy}</div><div className="primary-row"><button className="btn secondary" onClick={() => setStep(1)}>{copy.back}</button><button className="btn primary" disabled={busy || Boolean(issue)} onClick={() => void joinRoom()}>{busy ? copy.joining : copy.continue}</button></div></section>}
 
-    {step === 3 && room && participant && <section className="workspace player-card narrow waiting-stage"><div className="avatar-hero">{selectedAvatar.emoji}</div><div className="eyebrow">{copy.joinedAs}</div><h1>{participant.nickname}</h1><div className="waiting-pulse" aria-hidden="true" /><h2>{copy.waiting}</h2><p className="support">{copy.waitingDetail}</p><div className="lobby-summary"><div><span>{copy.roomCode}</span><strong>{room.join_code}</strong></div><div><span>{copy.playerCount}</span><strong>{snapshot?.counts.online ?? 1}</strong></div><div><span>Ready</span><strong>{snapshot?.counts.ready ?? 0}/{snapshot?.counts.active ?? 0}</strong></div><div><span>{copy.gamePreview}</span><strong>{game?.name ?? room.game_type} · {room.duration_minutes} min</strong></div></div>{participant.role === 'spectator' && <div className="notice warning">You joined as a spectator. In Quick Draw, spectators may still guess when audience guessing is enabled, but they do not enter the current artist rotation.</div>}{participant.role === 'participant' && <button className={`btn ${ready ? 'secondary' : 'primary'} full-width`} disabled={busy} onClick={() => void toggleReady()}>{busy ? 'Updating…' : ready ? `✓ ${copy.ready}` : copy.ready}</button>}</section>}
+    {step === 3 && room && participant && <section className="workspace player-card narrow waiting-stage"><div className="avatar-hero">{selectedAvatar.emoji}</div><div className="eyebrow">{copy.joinedAs}</div><h1>{participant.nickname}</h1><div className="waiting-pulse" aria-hidden="true" /><h2>{copy.waiting}</h2><p className="support">{copy.waitingDetail}</p><div className="lobby-summary"><div><span>{copy.roomCode}</span><strong>{room.join_code}</strong></div><div><span>{copy.players}</span><strong>{snapshot?.counts.online ?? 1}</strong></div><div><span>{copy.ready}</span><strong>{snapshot?.counts.ready ?? 0}/{snapshot?.counts.active ?? 0}</strong></div><div><span>{copy.gamePreview}</span><strong>{game?.name ?? room.game_type} · {room.duration_minutes} min</strong></div></div>{participant.role === 'spectator' && <div className="notice warning">{copy.spectatorNotice}</div>}{canReady && <button className={`btn ${ready ? 'secondary' : 'primary'} full-width`} disabled={busy} onClick={() => void toggleReady()}>{busy ? copy.updating : ready ? `✓ ${copy.ready}` : copy.ready}</button>}</section>}
 
     {step === 4 && room && participant && accessToken && room.game_type === 'bingo' && <section className="workspace player-card play-stage player-play"><BingoPlayerPanel accessToken={accessToken} roomCode={room.join_code} participantId={participant.id} /></section>}
     {step === 4 && room && accessToken && room.game_type === 'majority-match' && <section className="workspace player-card play-stage player-play"><MajorityMatchPlayerPanel accessToken={accessToken} roomCode={room.join_code} /></section>}
     {step === 4 && room && accessToken && room.game_type === 'quick-draw' && <section className="workspace player-card play-stage player-play"><QuickDrawPlayerPanel accessToken={accessToken} roomCode={room.join_code} /></section>}
 
-    {step === 4 && room && room.game_type !== 'bingo' && room.game_type !== 'majority-match' && room.game_type !== 'quick-draw' && <section className="workspace player-card narrow play-stage player-play"><div className="live-line"><span className="live-dot" /> {room.status === 'paused' ? 'PAUSED' : 'LIVE'} · {game?.name ?? room.game_type}</div><div className="eyebrow">Rules</div><h1>{room.status === 'paused' ? 'Waiting for Host.' : 'Round in progress.'}</h1><p className="support">This game is scheduled for Release 1.1.</p><div className="notice">Authoritative accepted answers, scores, ties, and rankings are never taken from this browser.</div></section>}
+    {step === 4 && room && room.game_type !== 'bingo' && room.game_type !== 'majority-match' && room.game_type !== 'quick-draw' && <section className="workspace player-card narrow play-stage player-play"><div className="live-line"><span className="live-dot" /> {room.status === 'paused' ? copy.paused : copy.live} · {game?.name ?? room.game_type}</div><div className="eyebrow">{copy.rules}</div><h1>{room.status === 'paused' ? copy.waitingHost : copy.roundInProgress}</h1><p className="support">{copy.release11}</p><div className="notice">{copy.authorityNotice}</div></section>}
 
-    {step === 5 && room && participant && <section className="workspace player-card narrow results-stage"><div className="eyebrow">{copy.results}</div><div className="avatar-hero">{selectedAvatar.emoji}</div><h1>Round complete, {participant.nickname}.</h1>{room.game_type === 'bingo' && accessToken ? <BingoResultsPanel accessToken={accessToken} roomCode={room.join_code} participantId={participant.id} /> : room.game_type === 'majority-match' && accessToken ? <MajorityMatchResultsPanel accessToken={accessToken} roomCode={room.join_code} /> : room.game_type === 'quick-draw' && accessToken ? <QuickDrawResultsPanel accessToken={accessToken} roomCode={room.join_code} /> : <div className="private-result"><span>Your private placement</span><strong>Pending</strong><small>This game is scheduled for Release 1.1.</small></div>}<p className="support">Stay in the room. When the Host chooses Replay or Change Game, this screen automatically returns to the lobby.</p><button className="btn secondary full-width" onClick={() => void leaveRoom()}>Leave room</button></section>}
+    {step === 5 && room && participant && <section className="workspace player-card narrow results-stage"><div className="eyebrow">{copy.results}</div><div className="avatar-hero">{selectedAvatar.emoji}</div><h1>{copy.roundComplete(participant.nickname)}</h1>{room.game_type === 'bingo' && accessToken ? <BingoResultsPanel accessToken={accessToken} roomCode={room.join_code} participantId={participant.id} /> : room.game_type === 'majority-match' && accessToken ? <MajorityMatchResultsPanel accessToken={accessToken} roomCode={room.join_code} /> : room.game_type === 'quick-draw' && accessToken ? <QuickDrawResultsPanel accessToken={accessToken} roomCode={room.join_code} /> : <div className="private-result"><span>{copy.privatePlacement}</span><strong>{copy.pending}</strong><small>{copy.release11}</small></div>}<p className="support">{copy.stayInRoom}</p><button className="btn secondary full-width" onClick={() => void leaveRoom()}>{copy.leaveRoom}</button></section>}
   </main>;
 }
