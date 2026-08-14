@@ -8,6 +8,7 @@ on:
       - 'scripts/verify-local-api-e2e.mjs'
       - 'scripts/verify-people-bingo-26.mjs'
       - 'scripts/verify-majority-quickdraw-e2e.mjs'
+      - 'scripts/verify-host-recovery-e2e.mjs'
       - '.github/workflows/supabase-integration.yml'
       - 'app/api/**'
       - 'lib/**'
@@ -21,7 +22,7 @@ permissions:
 jobs:
   local-supabase:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
 
@@ -75,6 +76,7 @@ jobs:
           SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" \
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           NEXT_PUBLIC_APP_URL="http://127.0.0.1:3000" \
+          HOST_RECOVERY_GRACE_SECONDS="2" \
           npm run dev -- --hostname 127.0.0.1 > /tmp/next.log 2>&1 &
           echo $! > /tmp/next.pid
 
@@ -115,6 +117,15 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           APP_BASE_URL="http://127.0.0.1:3000" \
           node scripts/verify-majority-quickdraw-e2e.mjs
+
+      - name: Verify Host recovery and automatic pause end to end
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          APP_BASE_URL="http://127.0.0.1:3000" \
+          node scripts/verify-host-recovery-e2e.mjs
 
       - name: Print integration logs on failure
         if: failure()
