@@ -3,6 +3,9 @@ name: Native iOS Validation
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   ios-native:
     runs-on: macos-latest
@@ -11,7 +14,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install --no-audit --no-fund
+          cache: npm
+      - run: npm ci --no-audit --no-fund
       - run: npm run mobile:build
         env:
           VITE_API_BASE_URL: https://api.example.invalid
