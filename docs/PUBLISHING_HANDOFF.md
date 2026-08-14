@@ -205,7 +205,7 @@ Host sign-in → choose 3/5/8/10 min → context → game → configuration → 
 
 ## 9. Account erasure validation
 
-The live JWT-protected `erase-account` Edge Function is version 3. It records whether a request came from the app/native flow or the external web `/privacy` flow and marks the request completed only after Auth deletion succeeds.
+The live JWT-protected `erase-account` Edge Function is version 4. It supports current Supabase publishable/secret credentials with legacy fallbacks, records whether a request came from the app/native flow or the external web `/privacy` flow, and marks the request completed only after Auth deletion succeeds.
 
 Test both identity classes against the deployed/native product:
 

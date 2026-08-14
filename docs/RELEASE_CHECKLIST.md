@@ -114,7 +114,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Release-flagged reusable reviewer email/password access uses normal Supabase Auth + the real Host flow; no reviewer credentials are embedded in source or environment variables.
 - [x] Store release preflight requires reviewer-access flags on web and native builds.
 - [x] Database-backed rate limits for high-impact room/join/control/moderation operations plus Quick Draw event flood limits.
-- [x] Authenticated account-erasure Edge Function **v3** is live/JWT-protected; erasure completes only after Auth deletion and audit source distinguishes `app` vs external `web` flow.
+- [x] Authenticated account-erasure Edge Function **v4** is live/JWT-protected; it supports current publishable/secret credentials with legacy fallbacks, completes only after Auth deletion, and distinguishes `app` vs external `web` audit source.
 - [x] In-app Privacy control initiates permanent account/data deletion for permanent Host and temporary Player identities.
 - [x] Public `/privacy` can send Host verification link and complete external web deletion path after authentication.
 - [x] Public `/privacy`, `/privacy-policy`, `/terms`, `/support`, and `/accessibility` routes exist; legal/account/accessibility/support links are exposed in web and native shells.
@@ -145,7 +145,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] First-party Support, Privacy Policy, Terms, Account/Data and Accessibility URL paths are implemented.
 - [x] Apple app privacy manifest source is versioned and native CI verifies it in the built app bundle.
 - [ ] Production/staging HTTPS hosting deployment and environment secrets. Connected Vercel team currently has no project; the connector deployment action remains internally invalid because its visible schema omits backend-required fields.
-- [ ] With explicit account-holder approval, apply migration 028 to the live Supabase project and redeploy the current JWT-protected `erase-account` source; the live function remains v3 and the safety gate correctly prevented an unapproved production permission change.
+- [x] With explicit account-holder approval, least-privilege migration 028 was applied to the live Supabase project and the current JWT-protected `erase-account` source was deployed as active v4; post-change advisors have no warning/error findings.
 - [x] A custom paid domain is not required for first publication; a stable HTTPS hosting origin can be used. A custom domain may be purchased later only if desired.
 - [ ] **Always-on production Supabase plan before store review/public release.** Official Supabase production guidance says Free projects may be auto-paused for low activity; paid-plan projects are not paused. This is a production reliability/payment gate, not the optional staging branch.
 - [ ] Create one dedicated normal Supabase email/password reviewer Host account and test those reusable credentials on the exact signed store binaries; never use an owner/admin/service account.

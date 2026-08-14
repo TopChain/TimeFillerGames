@@ -159,7 +159,7 @@ Production network traffic must use HTTPS/TLS. Android release validation keeps 
 ### Account deletion
 Implemented in Release 1 code/live backend:
 - in-app Privacy control for permanent Host and temporary Player authenticated identities;
-- authenticated Supabase Edge Function v3 that performs account/data erasure and only reports completion after the Auth identity has been deleted;
+- authenticated Supabase Edge Function v4 that performs account/data erasure and only reports completion after the Auth identity has been deleted;
 - external first-party `/privacy` account/data page;
 - public Privacy Policy and Support routes.
 

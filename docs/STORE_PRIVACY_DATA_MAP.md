@@ -79,7 +79,7 @@ Google Play Data Safety working mapping:
 ## Account deletion
 
 - In-app Privacy controls allow an authenticated Host or temporary Player identity to initiate permanent erasure.
-- The deployed JWT-protected Supabase `erase-account` Edge Function v3 closes rooms hosted by the user, removes account-linked moderation events, anonymizes any remaining participant records to `Deleted Player`, marks those seats offline/left, deletes the Supabase Auth identity, and only then marks the privacy request completed. If the erasure operation fails before Auth deletion, the request is returned to pending where possible rather than falsely reporting completion.
+- The deployed JWT-protected Supabase `erase-account` Edge Function v4 closes rooms hosted by the user, removes account-linked moderation events, anonymizes any remaining participant records to `Deleted Player`, marks those seats offline/left, deletes the Supabase Auth identity, and only then marks the privacy request completed. If the erasure operation fails before Auth deletion, the request is returned to pending where possible rather than falsely reporting completion.
 - Erasure audit records distinguish `app` and external `web` request sources.
 - The public `/privacy` page provides the external first-party account/data deletion entry point and can send a Host verification link back to that page before deletion.
 - Infrastructure/security records that a provider retains for fraud prevention, security, legal obligations, or platform operation may follow the applicable provider retention policy rather than the room TTL.
