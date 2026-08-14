@@ -38,7 +38,9 @@ jobs:
       - name: Install Supabase CLI
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
         with:
-          version: latest
+          # Keep integration CI reproducible and avoid an unauthenticated
+          # "latest release" API lookup that can be rate-limited by GitHub.
+          version: 2.114.0
 
       - name: Start clean local Supabase stack
         run: supabase start
