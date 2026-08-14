@@ -34,9 +34,9 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const now = new Date().toISOString();
+  let requestId: string | null = null;
 
   try {
-    let requestId: string | null = null;
     const { data: existing, error: existingError } = await admin
       .from("privacy_requests")
       .select("id,status")
@@ -50,7 +50,10 @@ Deno.serve(async (req: Request) => {
 
     if (existing) {
       requestId = existing.id;
-      const { error } = await admin.from("privacy_requests").update({ status: "processing" }).eq("id", existing.id);
+      const { error } = await admin
+        .from("privacy_requests")
+        .update({ status: "processing", completed_at: null })
+        .eq("id", existing.id);
       if (error) throw error;
     } else {
       const { data, error } = await admin.from("privacy_requests").insert({
@@ -94,17 +97,29 @@ Deno.serve(async (req: Request) => {
     }).eq("auth_user_id", user.id);
     if (participantError) throw participantError;
 
-    if (requestId) {
-      const { error: completedError } = await admin.from("privacy_requests").update({ status: "completed", completed_at: now }).eq("id", requestId);
-      if (completedError) throw completedError;
-    }
-
     const { error: deleteUserError } = await admin.auth.admin.deleteUser(user.id);
     if (deleteUserError) throw deleteUserError;
+
+    if (requestId) {
+      const { error: completedError } = await admin
+        .from("privacy_requests")
+        .update({ status: "completed", completed_at: now })
+        .eq("id", requestId);
+      if (completedError) {
+        console.error("Account erasure completed but audit finalization failed", completedError);
+      }
+    }
 
     return new Response(JSON.stringify({ ok: true, completedAt: now }), { status: 200, headers: jsonHeaders });
   } catch (error) {
     console.error("Account erasure failed", error);
+    if (requestId) {
+      const { error: resetError } = await admin
+        .from("privacy_requests")
+        .update({ status: "pending", completed_at: null })
+        .eq("id", requestId);
+      if (resetError) console.error("Could not reset failed erasure request", resetError);
+    }
     return new Response(JSON.stringify({ error: "Account erasure could not be completed" }), { status: 500, headers: jsonHeaders });
   }
 });
