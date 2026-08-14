@@ -1,6 +1,8 @@
 import { GAMES, type GameId, type Locale, type TimePreset } from './product';
 
-export const GROUP_CONTEXTS = ['Classroom', 'Friends', 'Family', 'Workplace', 'Kids', 'Mixed Group'] as const;
+// Release 1 public contexts. A dedicated child-directed Kids context is intentionally deferred
+// until the corresponding children/privacy review is complete.
+export const GROUP_CONTEXTS = ['Classroom', 'Friends', 'Family', 'Workplace', 'Mixed Group'] as const;
 export type GroupContext = (typeof GROUP_CONTEXTS)[number];
 export type RankingVisibility = 'podium' | 'top10' | 'public' | 'private';
 
