@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { endQuickDrawClient, fetchQuickDraw, finishQuickDrawRoundClient, nextQuickDrawRoundClient, type QuickDrawSnapshot } from '@/lib/client-quick-draw';
 import { updateLiveRoom } from '@/lib/client-room';
 import { HOST_GAME_UI_COPY } from '@/lib/host-game-ui-copy';
-import type { Locale } from '@/lib/product';
+import { useHostUiLocale } from '@/lib/use-host-ui-locale';
 import { QuickDrawCanvas } from './quick-draw-canvas';
 
-export function QuickDrawHostPanel({ accessToken, roomCode, locale = 'en', onEnded }: { accessToken: string; roomCode: string; locale?: Locale; onEnded?: () => void }) {
+export function QuickDrawHostPanel({ accessToken, roomCode, onEnded }: { accessToken: string; roomCode: string; onEnded?: () => void }) {
+  const locale = useHostUiLocale();
   const copy = HOST_GAME_UI_COPY[locale];
   const [snapshot, setSnapshot] = useState<QuickDrawSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
