@@ -38,6 +38,7 @@ jobs:
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
           VITE_AUTH_REDIRECT_URL: timefillergames://auth/callback
+          VITE_REVIEW_ACCESS_ENABLED: 'true'
       - run: npx cap add ios
       - run: npm run mobile:configure-native
       - name: Verify iOS release configuration
