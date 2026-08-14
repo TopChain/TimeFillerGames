@@ -1,5 +1,8 @@
 import fs from 'node:fs';
 
+const RELEASE_VERSION = '1.0.0';
+const RELEASE_BUILD = 1;
+
 function updateFile(path, transform) {
   if (!fs.existsSync(path)) return false;
   const before = fs.readFileSync(path, 'utf8');
@@ -14,11 +17,24 @@ updateFile(androidVars, (text) => text
   .replace(/compileSdkVersion\s*=\s*\d+/, 'compileSdkVersion = 36')
   .replace(/targetSdkVersion\s*=\s*\d+/, 'targetSdkVersion = 36'));
 
+const androidBuild = 'android/app/build.gradle';
+updateFile(androidBuild, (text) => text
+  .replace(/versionCode\s+\d+/, `versionCode ${RELEASE_BUILD}`)
+  .replace(/versionName\s+["'][^"']+["']/, `versionName "${RELEASE_VERSION}"`));
+
 const androidManifest = 'android/app/src/main/AndroidManifest.xml';
 updateFile(androidManifest, (text) => {
-  if (text.includes('android:scheme="timefillergames"')) return text;
-  const intent = `\n            <intent-filter>\n                <action android:name="android.intent.action.VIEW" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <category android:name="android.intent.category.BROWSABLE" />\n                <data android:scheme="timefillergames" />\n            </intent-filter>`;
-  return text.replace(/\s*<\/activity>/, `${intent}\n        </activity>`);
+  let next = text;
+  if (!/android:usesCleartextTraffic=/.test(next)) {
+    next = next.replace(/<application\b/, '<application android:usesCleartextTraffic="false"');
+  } else {
+    next = next.replace(/android:usesCleartextTraffic="[^"]*"/, 'android:usesCleartextTraffic="false"');
+  }
+  if (!next.includes('android:scheme="timefillergames"')) {
+    const intent = `\n            <intent-filter>\n                <action android:name="android.intent.action.VIEW" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <category android:name="android.intent.category.BROWSABLE" />\n                <data android:scheme="timefillergames" />\n            </intent-filter>`;
+    next = next.replace(/\s*<\/activity>/, `${intent}\n        </activity>`);
+  }
+  return next;
 });
 
 const iosPlist = 'ios/App/App/Info.plist';
@@ -33,4 +49,9 @@ updateFile(iosPlist, (text) => {
   return next;
 });
 
-console.log('Native release settings applied: Android min 26 / target 36, TimeFillerGames URL scheme, iOS camera purpose string.');
+const iosProject = 'ios/App/App.xcodeproj/project.pbxproj';
+updateFile(iosProject, (text) => text
+  .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${RELEASE_VERSION};`)
+  .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${RELEASE_BUILD};`));
+
+console.log(`Native release settings applied: Android min 26 / target 36, HTTPS-only transport, version ${RELEASE_VERSION} (${RELEASE_BUILD}), TimeFillerGames URL scheme, and iOS camera purpose string.`);
