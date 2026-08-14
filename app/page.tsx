@@ -22,6 +22,10 @@ export default function HomePage() {
       setMode('recovered-host');
       return;
     }
+    if (query.get('nativeHost') === '1') {
+      setMode('host');
+      return;
+    }
     if (query.get('join') || query.get('room')) setMode('player');
   }, []);
 
@@ -31,8 +35,8 @@ export default function HomePage() {
     setMode('home');
   }
 
-  if (mode === 'host') return <HostFlow onExit={() => setMode('home')} />;
-  if (mode === 'player') return <PlayerFlow onExit={() => setMode('home')} />;
+  if (mode === 'host') return <HostFlow onExit={exitSpecialFlow} />;
+  if (mode === 'player') return <PlayerFlow onExit={exitSpecialFlow} />;
   if (mode === 'recovered-host' && recoveredRoomCode) return <RecoveredHostFlow roomCode={recoveredRoomCode} onExit={exitSpecialFlow} />;
 
   return (
