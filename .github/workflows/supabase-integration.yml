@@ -7,6 +7,7 @@ on:
       - 'scripts/verify-local-supabase.mjs'
       - 'scripts/verify-local-api-e2e.mjs'
       - 'scripts/verify-people-bingo-26.mjs'
+      - 'scripts/verify-majority-quickdraw-e2e.mjs'
       - '.github/workflows/supabase-integration.yml'
       - 'app/api/**'
       - 'lib/**'
@@ -20,7 +21,7 @@ permissions:
 jobs:
   local-supabase:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
 
@@ -105,6 +106,15 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           APP_BASE_URL="http://127.0.0.1:3000" \
           node scripts/verify-people-bingo-26.mjs
+
+      - name: Verify Majority Match and Quick Draw APIs end to end
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_ANON_KEY="$ANON_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          APP_BASE_URL="http://127.0.0.1:3000" \
+          node scripts/verify-majority-quickdraw-e2e.mjs
 
       - name: Print integration logs on failure
         if: failure()
