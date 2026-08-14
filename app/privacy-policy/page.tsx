@@ -12,17 +12,18 @@ export default function PrivacyPolicyPage() {
       <li>Display nickname, built-in avatar choice, interface language, room readiness/presence, and reconnect state.</li>
       <li>Room settings, game submissions, scores, rankings, guesses, and drawing strokes needed to operate multiplayer games.</li>
       <li>Host moderation events and rate-limit/security records used for safety, abuse prevention, and service integrity.</li>
+      <li>Authentication and infrastructure security logs may include IP address, user-agent/browser or device information, request metadata, timestamps, and authentication events. These records are used for authentication, rate limiting, security, abuse prevention, troubleshooting, and reliable service operation—not advertising or cross-app tracking.</li>
     </ul>
     <h2>Uploaded photos</h2>
     <p>Uploaded participant photos are disabled in Release 1. Players use built-in avatars.</p>
     <h2>Advertising and tracking</h2>
     <p>Release 1 does not include an advertising SDK or cross-app tracking SDK, and TimeFillerGames does not sell personal data for advertising.</p>
     <h2>Service providers</h2>
-    <p>TimeFillerGames uses infrastructure providers for authentication, database/realtime operation, hosting, and related service delivery. These providers process information on behalf of the service according to their applicable agreements and configurations.</p>
+    <p>TimeFillerGames uses infrastructure providers for authentication, database/realtime operation, hosting, security logging, and related service delivery. These providers process information on behalf of the service according to their applicable agreements and configurations.</p>
     <h2>Retention</h2>
-    <p>Game rooms have an expiry time and are intended to be temporary. Operational and moderation records may be retained longer when needed for security, abuse prevention, dispute handling, legal obligations, or reliable service operation. Final production retention periods will be stated here before launch.</p>
+    <p>Game rooms have an expiry time and are intended to be temporary. Operational, authentication-security, infrastructure, and moderation records may be retained longer when needed for security, abuse prevention, dispute handling, legal obligations, or reliable service operation. Final production retention periods and hosting-provider details will be stated here before launch.</p>
     <h2>Account and data removal</h2>
-    <p>Authenticated Hosts and temporary Players can use the in-app Privacy control to permanently remove their TimeFillerGames authentication identity and associated personal data. Hosts may first verify their account from the public <a href="/privacy">account and data management page</a>. Rooms owned by a removed Host are closed; participation in rooms owned by another person is anonymized before the authentication identity is removed.</p>
+    <p>Authenticated Hosts and temporary Players can use the in-app Privacy control to permanently remove their TimeFillerGames authentication identity and associated personal data. Hosts may first verify their account from the public <a href="/privacy">account and data management page</a>. Rooms owned by a removed Host are closed; participation in rooms owned by another person is anonymized before the authentication identity is removed. Infrastructure/security logs that must be retained for security, legal, or provider-operational reasons may follow the applicable provider retention schedule.</p>
     <h2>Security</h2>
     <p>Production traffic is intended to use encrypted HTTPS/TLS connections. Multiplayer game authority and high-impact actions are validated by server-side services rather than trusting browser or mobile client state alone.</p>
     <h2>Children and classroom use</h2>
