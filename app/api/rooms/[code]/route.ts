@@ -25,6 +25,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
     const { code } = await context.params;
     await consumeServerRateLimit({ scope: 'room-control', identity: host.id, resource: code, limit: 90, windowSeconds: 60, message: 'Too many Host room-control requests. Wait briefly and try again.' });
     const update = parseHostRoomUpdate(await request.json());
+    if (update.context === 'Kids') throw new Error('The dedicated Kids context is not available in Release 1.');
+    if (update.allowCustomPhotos === true) throw new Error('Custom participant photos are not available in Release 1. Choose a built-in avatar.');
     const updateKeys = Object.keys(update);
 
     if (update.status === 'paused') {
