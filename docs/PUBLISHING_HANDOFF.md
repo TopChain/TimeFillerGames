@@ -18,10 +18,16 @@ Before deployment, PR #1 must remain Draft and all automatic checks on the exact
 - production dependency audit (`npm audit --omit=dev --audit-level=high`)
 - TypeScript
 - Vitest rules/content/localization/policy/PWA/fairness/canvas tests
+- release/staging script syntax checks
 - Next.js production build
 - Mobile Vite/Capacitor build
 - Android native configuration + debug APK + Play-format release AAB
-- iOS native configuration + unsigned Xcode simulator build + bundled `PrivacyInfo.xcprivacy`
+- merged Android permission audit: camera/internet required; location, microphone, broad media/storage, contacts/calendar/phone/SMS/sensors rejected
+- iOS native configuration + unsigned Xcode simulator build
+- app + Capacitor SDK privacy manifests
+- app-level privacy manifest bundled at the `.app` root
+- generated App Store icons exactly 1024×1024 and opaque (`hasAlpha: no`)
+- iOS sensitive-permission audit: camera allowed; location/microphone/photos/contacts/calendar/Bluetooth/health/motion/speech declarations rejected for Release 1
 
 Do not merge to `main` merely to obtain a preview. Use the release-candidate branch for staging until external QA passes.
 
@@ -109,7 +115,7 @@ PASS requires:
 
 Manually verify browser security headers and that all Host/Player API traffic stays HTTPS.
 
-## 7. Authenticated load test
+## 7. Authenticated load + API E2E
 
 Create one disposable verified Host login against the deployed product, obtain its temporary access token through a secure local testing session, and set:
 
@@ -118,6 +124,7 @@ STAGING_BASE_URL=https://<stable-vercel-host>
 STAGING_SUPABASE_URL=<Supabase URL>
 STAGING_SUPABASE_PUBLISHABLE_KEY=<publishable key>
 LOAD_TEST_HOST_TOKEN=<temporary disposable Host access token>
+E2E_HOST_TOKEN=<same or another disposable Host token>
 LOAD_TEST_PLAYERS=30
 ```
 
@@ -125,11 +132,14 @@ Then run:
 
 ```bash
 npm run staging:load
+npm run staging:e2e
 ```
 
-The harness creates its own temporary room and anonymous Player identities, performs concurrent joins, heartbeats and authenticated snapshots, prints p50/p95/max latency, and closes the room.
+`staging:load` creates its own temporary room and anonymous Player identities, performs concurrent joins, heartbeats and authenticated snapshots, prints p50/p95/max latency, and closes the room.
 
-Start at 30 Players. If clean, repeat at 50 and then 100 only as engineering validation; do not advertise a capacity number until the observed device/network behavior supports it.
+`staging:e2e` creates disposable rooms/Players and runs deployed API scenarios for Standard Bingo, Majority Match, and Quick Draw: card selection/concurrent draw integrity, Majority scoring/idempotent reveal, accepted Quick Draw guess/scoring, reveal, and incremental-stroke cursor behavior. It closes every temporary room and signs out guests.
+
+Start load testing at 30 Players. If clean, repeat at 50 and then 100 only as engineering validation; do not advertise a capacity number until the observed device/network behavior supports it.
 
 ## 8. End-to-end Release 1 QA matrix
 
@@ -178,7 +188,7 @@ Host sign-in → choose 3/5/8/10 min → context → game → configuration → 
 - finger + stylus/mouse where available
 - clear while strokes are still queued
 - incremental polling keeps canvas synchronized
-- reconnect reconstructs current visible canvas
+- reconnect reconstructs only the visible canvas from the most recent clear forward
 - guess flood/rate limits behave normally
 - accepted guess score and artist score agree with result
 - repeated Next round does not create a duplicate round
@@ -195,6 +205,8 @@ Host sign-in → choose 3/5/8/10 min → context → game → configuration → 
 
 ## 9. Account erasure validation
 
+The live JWT-protected `erase-account` Edge Function is version 3. It records whether a request came from the app/native flow or the external web `/privacy` flow and marks the request completed only after Auth deletion succeeds.
+
 Test both identity classes against the deployed/native product:
 
 1. Disposable anonymous Player → Privacy → Delete account & data → confirm.
@@ -203,7 +215,8 @@ Test both identity classes against the deployed/native product:
 4. Verify Host-owned rooms are removed.
 5. Verify participant records retained only for another Host’s room are anonymized.
 6. Verify request status reaches completed only after Auth deletion.
-7. Verify public `/privacy` account-management path is reachable from the web.
+7. Verify public `/privacy` account-management path can send a verification link and complete deletion from the web.
+8. Verify the audit source is `app` or `web` as appropriate.
 
 Do not use a real production owner account for this test.
 
@@ -240,14 +253,17 @@ Do not alter approved core rules solely to make a single beta session fit; use r
 
 Account-owner action is required for membership, contracts, certificates, signing and App Store Connect.
 
-Technical baseline already encoded:
+Technical baseline already encoded/validated:
 
 - `com.timefillergames.app`
 - 1.0.0 (1)
 - iOS 26 SDK / Xcode 26 generation requirement
 - app-level `PrivacyInfo.xcprivacy`
+- Capacitor SDK privacy manifest presence check
 - camera-purpose description
+- no unnecessary sensitive permission usage descriptions
 - `timefillergames://auth/callback`
+- opaque 1024×1024 App Store icon output
 
 After Apple Developer enrollment:
 
@@ -263,17 +279,20 @@ After Apple Developer enrollment:
 
 ## 13. App Store Connect content
 
-Use the versioned store draft rather than re-writing metadata from scratch:
+Use the versioned drafts rather than re-writing metadata from scratch:
 
-- app name/subtitle/description/keywords
-- category
-- Privacy Policy URL: `https://<stable-vercel-host>/privacy-policy`
-- optional Privacy Choices URL: `https://<stable-vercel-host>/privacy`
-- Support URL: `https://<stable-vercel-host>/support`
-- Accessibility URL: `https://<stable-vercel-host>/accessibility`
-- screenshots from the actual release build
-- App Privacy answers based on `docs/STORE_PRIVACY_DATA_MAP.md`
-- age rating questionnaire based on actual Release 1 behavior
+- `docs/STORE_SUBMISSION_DRAFT.md`
+- `docs/STORE_PRIVACY_DATA_MAP.md`
+- `docs/AGE_RATING_DRAFT.md`
+
+Submission URLs:
+
+- Privacy Policy: `https://<stable-vercel-host>/privacy-policy`
+- optional Privacy Choices: `https://<stable-vercel-host>/privacy`
+- Support: `https://<stable-vercel-host>/support`
+- Accessibility: `https://<stable-vercel-host>/accessibility`
+
+Current Apple age-rating working answer: **Frequent Contests** because normal gameplay competes for rankings/podiums. Under current iOS 26-era age-rating definitions this is expected to generate **13+**. This is not a Made for Kids designation. Complete the live questionnaire accurately and accept Apple's generated regional ratings unless a legal/EULA minimum age requires a higher override.
 
 Apple requires a Privacy Policy URL and App Privacy declarations. Because TimeFillerGames creates permanent Host and automatic guest/Player identities, keep the in-app deletion control available to both identity types.
 
@@ -285,19 +304,20 @@ Account-owner action is required for registration, identity verification, Play A
 2. Complete store listing using `docs/STORE_SUBMISSION_DRAFT.md`.
 3. Enter privacy policy: `https://<stable-vercel-host>/privacy-policy`.
 4. Enter external account deletion URL: `https://<stable-vercel-host>/privacy`.
-5. Complete Data Safety from `docs/STORE_PRIVACY_DATA_MAP.md` and the actual release binary/SDK behavior.
-6. Complete target audience/content rating/app access declarations.
-7. Enable Play App Signing.
-8. Produce/upload the signed Play release AAB based on the already-green unsigned `bundleRelease` pipeline.
-9. Start Internal Testing, then Closed Testing as appropriate.
-10. If the developer account is a **personal account created after November 13, 2023**, Google requires at least 12 opted-in closed testers continuously for 14 days before applying for production access. Do not assume this condition until the account type/creation date is known.
-11. Test the Play-distributed build, not only an Android Studio sideload.
+5. Complete Data Safety from `docs/STORE_PRIVACY_DATA_MAP.md` and the actual release binary/provider/SDK behavior.
+6. Complete IARC content rating and target audience using `docs/AGE_RATING_DRAFT.md` as the engineering basis.
+7. Do not select child target-age groups merely to broaden discoverability; any selected child audience triggers Families policy obligations.
+8. Enable Play App Signing.
+9. Produce/upload the signed Play release AAB based on the already-green unsigned `bundleRelease` pipeline.
+10. Start Internal Testing, then Closed Testing as appropriate.
+11. If the developer account is a **personal account created after November 13, 2023**, Google requires at least 12 opted-in closed testers continuously for 14 days before applying for production access. Do not assume this condition until the account type/creation date is known.
+12. Test the Play-distributed build, not only an Android Studio sideload.
 
 Android Release 1 already targets API 36, satisfying the August 31, 2026 new-app/update target requirement.
 
 ## 15. Screenshots
 
-Capture screenshots only after the staged/native release candidate passes QA so screenshots match the submitted binary.
+Capture screenshots only after the staged/native release candidate passes QA so screenshots match the submitted binary. Apple screenshots must not contain alpha/transparency.
 
 Recommended storyboard:
 
@@ -319,11 +339,13 @@ Before changing PR #1 from Draft / merging / submitting production builds, all m
 - exact release commit: web/server, mobile, Android, iOS CI green
 - `npm run release:preflight` green with real production env
 - HTTPS smoke green
+- `npm run staging:e2e` green
 - staging load green at the chosen launch test level
-- account deletion verified end to end
+- account deletion verified end to end on app and external web path
 - real-device QR/game/reconnect matrix green
 - People Bingo phone/readability and >25 session evidence acceptable
 - Quick Draw weak-network evidence acceptable
+- Android/iOS permission audits green on the exact release build
 - accessibility audit complete
 - closed beta pacing acceptable
 - real support identity present
