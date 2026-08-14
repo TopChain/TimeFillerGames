@@ -32,4 +32,8 @@ if (String(required.CRON_SECRET).length < 32) {
   throw new Error('CRON_SECRET must be a strong random value of at least 32 characters.');
 }
 
+if (process.env.NEXT_PUBLIC_REVIEW_ACCESS_ENABLED !== 'true') {
+  throw new Error('NEXT_PUBLIC_REVIEW_ACCESS_ENABLED must be true for the store-review release so reviewers have reusable Host access.');
+}
+
 console.log('Server release environment passed validation.');
