@@ -77,8 +77,20 @@ await api(`/api/rooms/${encodeURIComponent(roomCode)}/games/majority-match`, hos
 
 const before = await api(`/api/rooms/${encodeURIComponent(roomCode)}/cohost`, cohost.token);
 if (before?.isCoHost !== true || before?.canClaim !== false) throw new Error('Co-host recovery state is incorrect before Host becomes stale');
+if (!Number.isFinite(before.recoveryGraceSeconds) || before.recoveryGraceSeconds < 30) {
+  throw new Error(`Host recovery returned an unsafe grace period: ${JSON.stringify(before)}`);
+}
 
-await new Promise((resolve) => setTimeout(resolve, 3500));
+// Simulate the Host heartbeat stopping without weakening the production minimum
+// grace period or making CI sleep for more than 30 seconds.
+const staleHeartbeat = new Date(Date.now() - (before.recoveryGraceSeconds + 5) * 1000).toISOString();
+const { error: staleError } = await admin
+  .from('rooms')
+  .update({ host_last_seen_at: staleHeartbeat })
+  .eq('join_code', roomCode)
+  .eq('host_user_id', host.userId);
+if (staleError) throw staleError;
+
 const stale = await api(`/api/rooms/${encodeURIComponent(roomCode)}/cohost`, cohost.token);
 if (stale?.canClaim !== true) throw new Error(`Co-host did not become recovery-eligible after QA grace period: ${JSON.stringify(stale)}`);
 

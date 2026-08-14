@@ -92,7 +92,6 @@ jobs:
           SUPABASE_SECRET_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
           SUPABASE_SERVICE_ROLE_KEY="$LOCAL_SUPABASE_SECRET_KEY" \
           NEXT_PUBLIC_APP_URL="http://127.0.0.1:3000" \
-          HOST_RECOVERY_GRACE_SECONDS="2" \
           CRON_SECRET="local-retention-qa-secret-please-do-not-use-in-production" \
           npm run dev -- --hostname 127.0.0.1 > /tmp/next.log 2>&1 &
           echo $! > /tmp/next.pid
