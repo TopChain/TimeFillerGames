@@ -21,25 +21,33 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Dedicated child-directed `Kids` context removed from Release 1 UI and rejected server-side pending separate children/privacy review.
 - [x] Uploaded participant photos removed from Release 1 UI/API and database-enforced off; built-in avatars remain the launch identity path.
 - [x] Automated Release 1 policy guards prevent accidental reintroduction of Kids mode, custom photos, Release 1.1 public games, or public Quick Draw guess streaming.
-- [ ] Real iPhone/Android QR scan validation against the staging/production HTTPS origin.
+- [ ] Real iPhone/Android QR scan validation against the deployed HTTPS origin.
 
 ## Release 1 games
 ### Standard Number Bingo
 - [x] Three candidate cards, timed choice, server auto-assignment, lock.
 - [x] Server draw lifecycle, automatic marking, one-line winner validation, same-draw shared placement.
 - [x] Server-authoritative pause/resume preserves exact state/deadlines.
+- [x] Database draw-history guard rejects stale/non-monotonic draw state.
+- [x] Winner rows are derived transactionally from the committed draw state; direct/retried winner inserts are suppressed.
+- [x] Rollback-only live DB validation confirms fifth-draw winner detection and stale-overwrite rejection.
 
 ### People Bingo 5×5
 - [x] Hard minimum: 25 unique active participants.
 - [x] Avatar + display-name identity cells; server identity draws and automatic marking.
 - [x] No duplicate participant within one card.
+- [x] Same database-authoritative draw/winner path as Standard Bingo supports string participant identities.
+- [x] Deterministic >25 subset simulation verifies 25 unique identities/card, balanced repeated distribution across 30 eligible players, and eventual inclusion across a 60-player pool.
 - [x] Larger boards disabled for Release 1.
 - [ ] Real-session >25 participant subset/fairness validation before any public fairness/capacity claim.
 - [ ] 5×5 phone readability validation across supported device sizes.
 
 ### Majority Match
 - [x] Private prediction, no speed bonus, tied-majority full-credit rule.
-- [x] Server timer/reveal/scoring/ranking privacy and safe late-join boundaries.
+- [x] Server timer/reveal/ranking privacy and safe late-join boundaries.
+- [x] Reveal scoring is derived transactionally from the committed answering → revealing transition; application-side score retries are suppressed.
+- [x] Duplicate reveal/next writes become idempotent no-ops while status-changing pause/resume remains valid.
+- [x] Rollback-only live DB validation confirms tied top choices both receive 1000 points and stale next/reveal state cannot replace the first committed state.
 - [x] Curated Release 1 bank: 50 neutral prompts, 10 each across Classroom/Friends/Family/Workplace/General.
 - [x] Automated content integrity/coverage tests.
 
@@ -52,7 +60,12 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Optional audience guessing and server scoring.
 - [x] Public/moderated guess stream is blocked server-side for Release 1 and removed from the production Host UI; guesses remain private until accepted.
 - [x] Server-authoritative pause/resume preserves drawing deadlines.
-- [ ] Real-network drawing/clear/guess-flood validation; replace polling transport only if evidence shows it is required.
+- [x] Accepted-guess and artist scoring are transaction-bound to accepted-guess / round-reveal DB events and unique by score reason.
+- [x] Concurrent next-round retries serialize with a transaction-scoped advisory lock; session state canonicalizes from the authoritative round row.
+- [x] High-frequency GET polling uses session/round/sequence stroke cursors instead of sending the full round history on every refresh.
+- [x] Client canvas history compacts at the most recent clear; regression tests cover no-clear and repeated-clear histories.
+- [x] Rollback-only live DB tests confirm direct score attempts are suppressed, accepted guess scoring, artist fraction scoring, and duplicate-round canonicalization.
+- [ ] Real-network drawing/clear/guess-flood validation; replace polling transport only if deployed/device evidence still shows it is required after incremental polling.
 - [ ] Fuzzy spelling tolerance remains deferred unless usability/content evidence supports broadening acceptance.
 
 ## CI / framework / native / accessibility
@@ -63,7 +76,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Deterministic `package-lock.json` and `npm ci` across web/mobile/native CI.
 - [x] Framework upgraded to Next.js 16.3.1 + React 19.2 + TypeScript 5.9; Node engine requires 20.9+ and CI uses Node 24.
 - [x] Production dependency security gate: `npm audit --omit=dev --audit-level=high` passes; the earlier vulnerable Next 15 PostCSS/Sharp chain was upgraded instead of suppressed.
-- [x] Web/server CI: dependency audit + TypeScript + rule/content/localization/policy/PWA tests + production Next.js build.
+- [x] Web/server CI: dependency audit + TypeScript + rule/content/localization/policy/PWA/fairness/canvas tests + production Next.js build.
 - [x] Mobile CI: bundled Vite/Capacitor client build.
 - [x] GitHub Actions upgraded to the Node 24 generation: `checkout@v6`, `setup-node@v6`, `setup-java@v5`, `upload-artifact@v7`.
 - [x] Bounded Dependabot maintenance for npm weekly and GitHub Actions monthly; no auto-merge.
@@ -72,7 +85,7 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] iOS native validation runs automatically on relevant PR changes; generated project, camera permission, deep link, Release 1 version and unsigned Xcode simulator build all pass on macOS.
 - [x] App-level `PrivacyInfo.xcprivacy` is valid, attached to the generated iOS Xcode App resource phase, and proven by CI to be bundled at the root of the compiled `.app`.
 - [x] Master Release 1 stopwatch/controller SVG and 1024px raster app-icon source derived from approved v1 identity rules; PWA/native packaging no longer uses generic Capacitor branding.
-- [x] PWA manifest includes explicit 192×192 and 512×512 PNG install icons plus the scalable maskable SVG; tests verify PNG structure and exact dimensions.
+- [x] PWA manifest includes explicit 192×192 and 512×512 PNG install icons plus the scalable maskable SVG; tests verify PNG signature, dimensions and complete IEND termination.
 - [x] First-party `/accessibility` page implemented and linked from web/native footer.
 - [x] Six named optional branded themes are explicitly deferred from first store build because v1.0 provides names but not exact palette definitions. Release 1 ships approved Light/Dark/System semantic CI rather than inventing colors.
 - [ ] Full real keyboard/screen-reader/text-scale/contrast audit on supported browsers/devices.
@@ -84,11 +97,14 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Supabase room/participant/game persistence with restrictive RLS and private realtime boundary.
 - [x] Supabase project remains ACTIVE_HEALTHY under organization **TopChain AI Lab** with the same project reference and database endpoint.
 - [x] Live Supabase schema security/performance advisors have no warning-level findings; only expected informational server-only/unused-index notices remain before traffic.
-- [x] Repository migrations 001–016 reproduce the live Release 1 security/recovery/privacy state, including restored `005_release11_content_foundation.sql` for the dormant server-only Word/Math tables that existed outside tracked migration history.
+- [x] Repository migrations are versioned through `027_remove_unused_bingo_rpc.sql`, reproducing Release 1 security, RLS, recovery, privacy, concurrency, transactional scoring and uniqueness hardening.
+- [x] Dormant Release 1.1 server-only Word/Math tables are reproducible via restored migration 005 rather than hidden manual state.
+- [x] At most one active/paused game session per room is database-enforced.
+- [x] One active authenticated seat and one case-insensitive active nickname per room are database-enforced; duplicate-index advisor warning introduced during hardening was removed.
 - [x] Host magic-link auth and invisible anonymous Player auth.
 - [x] Native Host magic-link deep-link callback and single shared native Supabase session/client.
 - [x] Database-backed rate limits for high-impact room/join/control/moderation operations plus Quick Draw event flood limits.
-- [x] Authenticated account-erasure Edge Function is live and source-versioned; it closes hosted rooms, anonymizes remaining participant records, clears account-linked moderation data, and deletes the Auth identity.
+- [x] Authenticated account-erasure Edge Function v2 is live and source-versioned; hosted rooms/account links/moderation identity are removed/anonymized and the request is marked completed only after Auth deletion succeeds.
 - [x] In-app Privacy control initiates permanent account/data deletion for both permanent and temporary authenticated identities.
 - [x] Public `/privacy`, `/privacy-policy`, `/terms`, `/support`, and `/accessibility` routes exist; legal/account/accessibility/support links are exposed in web and native shells.
 - [x] Expired-room retention service + authenticated daily Vercel Cron route/config are source-ready.
@@ -96,9 +112,10 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Strict mobile release environment validator rejects localhost/example/non-HTTPS/missing public Supabase settings.
 - [x] One-command `npm run release:preflight` combines production env validation, TypeScript/tests/build, and release mobile bundle build.
 - [x] One-command `npm run staging:smoke` verifies health/legal/support/accessibility/account surfaces after an HTTPS deployment exists.
+- [x] `npm run staging:load` creates a temporary room and independent anonymous identities, exercises concurrent join/heartbeat/snapshot traffic, reports p50/p95/max latency and closes the test room afterward.
 - [x] Source-control scan found no committed live Supabase project reference, service-role secret, or JWT-like credential pattern.
 - [ ] End-to-end account-erasure validation against deployed/native app.
-- [ ] Load/reconnect/stale-seat tests under realistic concurrency.
+- [ ] Execute staging load/reconnect/stale-seat tests under realistic concurrency.
 
 ## Store packaging / submission preparation
 - [x] Stable bundle/application ID: `com.timefillergames.app`.
@@ -108,8 +125,8 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [x] Privacy/account-deletion paths implemented for Apple/Google review requirements.
 - [x] First-party Support, Privacy Policy, Terms, Account/Data and Accessibility URL paths are implemented.
 - [x] Apple app privacy manifest source is versioned and native CI verifies it is in the built app bundle.
-- [ ] Production HTTPS domain/hosting deployment and environment secrets. Connected Vercel team currently has no project; the connector's deployment action remains internally invalid because its visible schema omits required `target`, `name`, and `files` fields.
-- [ ] Domain purchase if desired. `timefillergames.com` was available when checked; purchase requires explicit account-owner payment approval.
+- [ ] Production/staging HTTPS hosting deployment and environment secrets. Connected Vercel team currently has no project; the connector's deployment action remains internally invalid because its visible schema omits required `target`, `name`, and `files` fields.
+- [x] A custom paid domain is not required for first publication; a stable HTTPS hosting origin can be used. A custom domain may be purchased later only if desired.
 - [ ] Real support email/contact identity for store listing/support page. Do not invent a personal/company contact.
 - [ ] Final legal/account-holder review of Privacy Policy and Terms; governing law/age terms must not be invented by engineering.
 - [ ] Apple Developer account, certificates/signing, App Store Connect/TestFlight setup.
@@ -123,8 +140,8 @@ Source of truth: Product Plan v1.0 + Brand & Product CI Guidelines v1.0. This fi
 - [ ] iPhone + Android + laptop/projector device matrix.
 - [ ] Weak-Wi-Fi / reconnect / Host recovery tests.
 - [ ] People Bingo readability/fairness sessions.
-- [ ] Quick Draw real-network synchronization tests.
-- [ ] Load test before public capacity claims.
+- [ ] Quick Draw real-network synchronization tests with incremental polling enabled.
+- [ ] Run `npm run staging:load` before any public capacity claim.
 - [ ] Closed beta validates actual 3 / 5 / 8 / 10-minute pacing.
 - [ ] Final production smoke test and rollback plan.
 
