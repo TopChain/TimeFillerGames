@@ -12,6 +12,7 @@
     "server:release:check": "node scripts/validate-server-release-env.mjs",
     "release:preflight": "npm run server:release:check && npm run check && npm run mobile:release:build",
     "staging:smoke": "node scripts/smoke-staging.mjs",
+    "staging:load": "node scripts/load-room.mjs",
     "mobile:dev": "vite --config mobile/build.config.ts",
     "mobile:build": "vite build --config mobile/build.config.ts",
     "mobile:release:check": "node scripts/validate-mobile-release-env.mjs",
