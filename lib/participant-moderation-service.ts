@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { parseContentReport } from './moderation-rules';
+import { consumeServerRateLimit } from './rate-limit-service';
 import { disambiguateNickname, nicknameIssue, normalizeRoomCode } from './room-flow';
 import { createAdminClient } from './supabase/admin';
 
@@ -36,7 +38,7 @@ async function writeModerationEvent(input: {
   roomId: string;
   actorUserId: string;
   participantId?: string | null;
-  action: 'role_changed' | 'participant_removed' | 'nickname_overridden' | 'nickname_unlocked';
+  action: 'role_changed' | 'participant_removed' | 'nickname_overridden' | 'nickname_unlocked' | 'content_reported';
   details?: Record<string, unknown>;
 }) {
   const admin = createAdminClient();
@@ -48,6 +50,55 @@ async function writeModerationEvent(input: {
     details: input.details ?? {},
   });
   if (error) console.error('Moderation audit write failed', { action: input.action, roomId: input.roomId, participantId: input.participantId ?? null, message: error.message });
+}
+
+export async function reportRoomContent(roomCodeValue: string, userId: string, value: unknown) {
+  const admin = createAdminClient();
+  const roomCode = normalizeRoomCode(roomCodeValue);
+  const { data: room, error: roomError } = await admin.from('rooms')
+    .select('id,join_code,status')
+    .eq('join_code', roomCode)
+    .neq('status', 'closed')
+    .maybeSingle();
+  if (roomError) throw new Error(roomError.message);
+  if (!room) throw new Error('Room is no longer available.');
+
+  const { data: reporter, error: reporterError } = await admin.from('participants')
+    .select('id,nickname')
+    .eq('room_id', room.id)
+    .eq('auth_user_id', userId)
+    .is('left_at', null)
+    .maybeSingle();
+  if (reporterError) throw new Error(reporterError.message);
+  if (!reporter) throw new Error('Only an active room participant can submit a report.');
+
+  const report = parseContentReport(value);
+  if (report.targetParticipantId === reporter.id) throw new Error('You cannot report your own room content.');
+  const target = await activeTarget(room.id, report.targetParticipantId);
+
+  await consumeServerRateLimit({
+    scope: 'content-report',
+    identity: userId,
+    resource: room.id,
+    limit: 5,
+    windowSeconds: 60,
+    message: 'Too many reports were submitted. Wait a moment before reporting again.',
+  });
+
+  await writeModerationEvent({
+    roomId: room.id,
+    actorUserId: userId,
+    participantId: target.id,
+    action: 'content_reported',
+    details: {
+      reporterParticipantId: reporter.id,
+      reporterNickname: reporter.nickname,
+      targetNickname: target.nickname,
+      kind: report.kind,
+      reason: report.reason,
+    },
+  });
+  return { ok: true as const, targetParticipantId: target.id };
 }
 
 export async function setModeratedParticipantRole(roomCodeValue: string, hostUserId: string, participantId: string, role: ModerationRole) {

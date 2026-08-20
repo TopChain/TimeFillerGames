@@ -1,6 +1,6 @@
 # TimeFillerGames Release 1 Store Submission Draft
 
-Engineering draft for App Store Connect and Google Play Console. Final production URLs, legal/account-holder declarations, age/target-audience questionnaires, screenshots, signing and store-console setup remain required before submission.
+Engineering draft for App Store Connect and Google Play Console. The stable production HTTPS origin is live; final legal/account-holder declarations, support identity, age/target-audience questionnaires, screenshots, signing, distributed beta testing and store-console setup remain required before submission.
 
 ## Product identity
 
@@ -16,12 +16,21 @@ Engineering draft for App Store Connect and Google Play Console. Final productio
 
 ## Current technical submission baseline — August 2026
 
-- Apple uploads for iOS/iPadOS must be built with the iOS/iPadOS 26 SDK or later. The Release 1 native validation pipeline is based on the Xcode 26 generation.
+- Apple uploads for iOS/iPadOS must be built with Xcode 26 or later using the iOS/iPadOS 26 SDK or later. The Release 1 native validation pipeline is based on that generation.
 - Android Release 1 targets API 36, matching Google Play's August 31, 2026 target requirement for new phone/tablet apps and updates.
 - Apple requires apps that support account creation—including automatically generated guest accounts—to let users initiate account deletion in-app. TimeFillerGames exposes deletion to permanent Host and temporary Player identities.
 - Google Play requires an in-app deletion path and an external web deletion resource for apps that enable account creation. The Release 1 paths are the in-app Privacy control and public `/privacy` page.
 - Google Play Data Safety and Apple App Privacy declarations must be completed from the actual production build and third-party SDK behavior.
 - If the Google Play developer account is a **personal account created after November 13, 2023**, the app must complete a closed test with at least 12 continuously opted-in testers for 14 days before applying for production access. Do not assume this applies until the account type/creation date is known.
+
+## Production web origin
+
+- Stable origin: **https://time-filler-games.vercel.app**
+- Production Vercel project: `time-filler-games`
+- `/api/health`: live and confirms public/server Supabase configuration plus database reachability.
+- Home, Privacy Policy, Terms, Account & Data, Support, and Accessibility routes respond over HTTPS.
+- Security headers include HSTS, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, strict referrer policy, and a restrictive permissions policy.
+- Unauthenticated `/api/cron/retention` requests are rejected with HTTP 401.
 
 ## Apple App Store draft
 
@@ -69,24 +78,24 @@ Games
 Entertainment
 
 ### Support URL
-Production HTTPS origin + `/support`.
+https://time-filler-games.vercel.app/support
 
-The page is implemented. Before submission it must show a real support contact owned by the account holder/company.
+The page is live. Before submission it must show a real support contact owned/approved by the account holder or company.
 
 ### Privacy Policy URL
-Production HTTPS origin + `/privacy-policy`.
+https://time-filler-games.vercel.app/privacy-policy
 
-The page is implemented. Final legal/account-holder review remains required before public submission.
+The page is live and now reflects the production hosting/retention implementation. Final legal/account-holder review remains required before public submission.
 
 ### Privacy Choices URL draft
-Production HTTPS origin + `/privacy`.
+https://time-filler-games.vercel.app/privacy
 
 This provides the account/data-management and deletion path. Apple's Privacy Choices URL is optional but useful for the Release 1 product.
 
 ### Accessibility URL
-Production HTTPS origin + `/accessibility`.
+https://time-filler-games.vercel.app/accessibility
 
-The first-party accessibility page is implemented and linked from the web/native footer. Final real-device validation results must remain consistent with its claims.
+The first-party accessibility page is live and linked from the web/native footer. Final real-device validation results must remain consistent with its claims.
 
 ## Google Play draft
 
@@ -126,10 +135,10 @@ Release 1 contains no advertising SDK and no cross-app tracking SDK.
 Game / Casual
 
 ### Privacy Policy URL
-Production HTTPS origin + `/privacy-policy`.
+https://time-filler-games.vercel.app/privacy-policy
 
 ### External account deletion URL
-Production HTTPS origin + `/privacy`.
+https://time-filler-games.vercel.app/privacy
 
 ## Store privacy/data-safety working answers
 
@@ -149,25 +158,26 @@ These answers must remain synchronized with `docs/STORE_PRIVACY_DATA_MAP.md` and
 - Quick Draw guesses and drawing strokes for game operation.
 - Moderation events for Host actions and abuse/safety operations.
 - Hashed/rate-limit operational identifiers for abuse prevention.
+- Authentication/infrastructure security metadata may include IP address, user-agent/device information, request metadata, timestamps, and authentication events for security and reliable service operation.
 
 ### Data sharing draft
-No sale of personal data and no advertising-data sharing is implemented. Supabase and the hosting provider process data as service providers/subprocessors to operate authentication, database, realtime, and application infrastructure.
+No sale of personal data and no advertising-data sharing is implemented. Supabase and Vercel process data as infrastructure/service providers to operate authentication, database, realtime, HTTPS application hosting, server execution, security and related service functions.
 
 ### Encryption
-Production network traffic must use HTTPS/TLS. Android release validation keeps cleartext HTTP disabled before signing.
+The production web/API origin uses HTTPS/TLS. Android release validation keeps cleartext HTTP disabled before signing.
 
 ### Account deletion
 Implemented in Release 1 code/live backend:
 - in-app Privacy control for permanent Host and temporary Player authenticated identities;
-- authenticated Supabase Edge Function v4 that performs account/data erasure and only reports completion after the Auth identity has been deleted;
+- authenticated Supabase `erase-account` Edge Function that performs account/data erasure and only reports completion after the Auth identity has been deleted;
 - external first-party `/privacy` account/data page;
 - public Privacy Policy and Support routes.
 
-Remaining gate: validate the full deletion flow against the deployed HTTPS environment and real native devices before submission.
+Remaining gate: validate the full deletion flow against the deployed HTTPS environment and signed/distributed native builds before submission.
 
 ## Screenshot storyboard
 
-Create real-device screenshots only after the production-like HTTPS backend, support contact and final deployment origin are connected. Suggested sequence:
+Create real-device screenshots only after support/legal review and the staged/native release candidate passes QA. Suggested sequence:
 1. Home — “Make every spare moment playable.”
 2. Time-first setup — 3 / 5 / 8 / 10 minutes.
 3. Host lobby — room code + QR + readiness.
@@ -177,8 +187,11 @@ Create real-device screenshots only after the production-like HTTPS backend, sup
 7. Results — public podium + private result.
 8. Player identity — language/avatar/nickname flow.
 
+Do not include personal emails, access tokens, real participant information, or engineering/admin diagnostics.
+
 ## Implemented submission assets / surfaces
 
+- Stable production HTTPS origin on Vercel.
 - First-party master stopwatch/controller SVG.
 - 1024px raster app-icon source for store/native packaging.
 - Android branded adaptive-vector launcher configuration.
@@ -191,22 +204,24 @@ Create real-device screenshots only after the production-like HTTPS backend, sup
 - Native/web legal-support footer linking these first-party pages.
 - Strict server/mobile production-environment validators.
 - One-command `npm run release:preflight`.
-- One-command `npm run staging:smoke` once a real HTTPS deployment exists.
+- One-command `npm run staging:smoke` for the deployed HTTPS origin.
 - `npm run staging:load` authenticated temporary-room concurrency harness; no paid Supabase branch is required.
+- `npm run staging:e2e` deployed API game-flow harness.
 - `docs/PUBLISHING_HANDOFF.md` account-owner runbook.
 
 ## Remaining blockers that metadata cannot solve
 
-- Production/staging HTTPS deployment and production environment secrets.
-- Supabase production Site URL / web + native Auth redirect configuration.
+- Confirm production Supabase Auth Site URL / web + native redirect configuration against the live origin.
+- Move the production Supabase project to an always-on production plan before store review/public release; enable leaked-password protection before creating any reusable password reviewer credential.
 - Real support email/contact identity on the production Support page and store records.
 - Final Privacy Policy / Terms legal/account-holder acceptance.
-- End-to-end account-erasure validation on deployed/native builds.
+- End-to-end account-erasure validation on deployed and signed/distributed native builds.
 - Real-device accessibility, QR, network/reconnect, People Bingo readability/fairness and Quick Draw synchronization QA.
-- iOS signing, Apple Developer/App Store Connect/TestFlight setup.
+- iOS signing, Apple Developer/App Store Connect/TestFlight setup and TestFlight validation.
 - Android Play Console record, Play App Signing/keystore and applicable testing track.
-- Production screenshots captured from the real staged/native product.
+- Production screenshots captured from the final distributed product.
 - Age-rating / target-audience questionnaires completed using actual Release 1 behavior.
 - Closed beta and final 3 / 5 / 8 / 10-minute pacing validation.
+- Reusable Apple review access that lets App Review reach login-gated functionality without waiting for an inaccessible mailbox during review.
 
-A custom paid domain is optional for Release 1; a stable public HTTPS hosting origin is sufficient. A paid Supabase staging branch is intentionally not required.
+A custom paid domain is optional for Release 1; the stable public Vercel HTTPS origin is sufficient. A paid Supabase staging branch is intentionally not required.
