@@ -88,7 +88,7 @@ Google Play Data Safety working mapping:
 ## Third-party processing
 
 - Supabase provides authentication, PostgreSQL persistence, Edge Function execution, realtime infrastructure, auth audit/security logging, and platform logs for Release 1.
-- The intended Next.js hosting target is Vercel, but the connected Vercel team currently has no project and deployment is not yet configured. Store disclosures must be rechecked after the final hosting project/origin and log settings are live.
+- Vercel hosts the live Next.js application and API at `https://time-filler-games.vercel.app`. The production deployment, health endpoint, legal/support/account-data routes, security headers, and authenticated retention configuration must be rechecked against the exact store binary immediately before submission.
 - Apple lists Capacitor among commonly used SDKs that require their own privacy manifest. Native iOS CI verifies the installed Capacitor dependency contains at least one `PrivacyInfo.xcprivacy`; TimeFillerGames separately bundles its own app-level privacy manifest.
 - No advertising SDK or cross-app tracking SDK is implemented in Release 1.
 
@@ -97,7 +97,7 @@ Google Play Data Safety working mapping:
 - Real support contact identity and support escalation workflow.
 - Final Privacy Policy and Terms acceptance, governing law, and launch-jurisdiction language.
 - App Store / Play age-rating and target-audience declarations based on actual Release 1 behavior.
-- Final provider log-retention/configuration review after the production Vercel project is created.
+- Final provider log-retention/configuration review against the live production Vercel and Supabase projects.
 - Any future uploaded-photo lifecycle, consent, moderation, storage and retention rules before that feature can ever be enabled.
 
 Do not copy this engineering inventory verbatim into store declarations without validating the final production build, enabled feature flags, hosting provider/log settings, SDK inventory, legal policy, account-deletion behavior, and production retention job immediately before submission.

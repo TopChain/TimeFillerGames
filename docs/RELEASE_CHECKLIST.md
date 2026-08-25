@@ -76,7 +76,8 @@ A paid Supabase staging branch is intentionally **not** required.
 ## Database, security and privacy
 
 - [x] Supabase TimeFillerGames project is ACTIVE_HEALTHY under **TopChain AI Lab**.
-- [x] Repository migrations through 028 reproduce the current Release 1 schema/security/recovery/concurrency/least-privilege state on a clean current Supabase stack.
+- [x] Repository migrations through 029 reproduce the current Release 1 schema/security/recovery/concurrency/moderation-report state on a clean current Supabase stack.
+- [x] Live production migration 029 is applied; its `content_reported` action constraint and filtered moderation lookup index are verified.
 - [x] RLS/private realtime boundaries implemented.
 - [x] One live active/paused game session per room is database-enforced.
 - [x] Active authenticated seat and active case-insensitive nickname uniqueness are database-enforced.
@@ -103,7 +104,8 @@ A paid Supabase staging branch is intentionally **not** required.
 - [x] Unauthenticated retention endpoint returns 401.
 - [x] No current Vercel runtime error cluster detected; no warning/error/fatal log found in recent retained window.
 - [x] Custom paid domain is optional, not a Release 1 publication requirement.
-- [ ] Repeat smoke/E2E/load validation after the finalization PR is merged and its production deployment is READY.
+- [x] Repeat public HTTPS smoke validation after the finalization PR merge and production deployment.
+- [ ] Complete authenticated deployed E2E/load validation with a disposable verified Host.
 
 ## CI / framework / packaging
 

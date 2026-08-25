@@ -124,7 +124,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Apply every SQL file in `supabase/migrations/` in filename order to a clean Supabase environment. The current release chain is versioned through `028_service_role_table_privileges.sql`. Migration `005_release11_content_foundation.sql` reproduces the dormant server-only Word/Math foundation that already exists in the connected live project; migration 028 explicitly grants the service role only the Release 1 table DML and private-routine access exercised by the server.
+Apply every SQL file in `supabase/migrations/` in filename order to a clean Supabase environment. The current release chain is versioned through `029_room_content_reports.sql`. Migration `005_release11_content_foundation.sql` reproduces the dormant server-only Word/Math foundation that already exists in the connected live project; migration 028 explicitly grants the service role only the Release 1 table DML and private-routine access exercised by the server, and migration 029 adds the server-mediated participant content-report action and its lookup index.
 
 ## Verification commands
 
@@ -179,16 +179,16 @@ Signing and store-account distribution still require the account owner’s Apple
 
 Code/build work is no longer the main blocker. Public release still requires:
 
-1. A real HTTPS deployment and production environment secrets. The connected Vercel team currently has no project, and the available deployment connector is internally malformed.
+1. Move the production Supabase project from the Free plan to an always-on production plan and enable leaked-password protection before creating the reusable store-review Host.
 2. A real support email/contact identity on the production Support page and store listings.
 3. Final account-holder/legal acceptance of Privacy Policy and Terms, including governing-law/age wording.
 4. Apple Developer/App Store Connect certificates, signing and TestFlight.
 5. Google Play Console, Play App Signing/keystore, testing track and signed AAB upload.
-6. Real iPhone + Android + laptop/projector QR/device testing.
-7. Screen-reader, keyboard, text-scale and contrast validation on real supported devices/browsers.
-8. Weak-Wi-Fi/reconnect/Host-recovery and Quick Draw real-network tests.
-9. People Bingo 5×5 phone readability and real >25-player fairness sessions.
-10. `staging:load` against the deployed origin before any public capacity claim.
+6. Authenticated deployed E2E/load validation using a disposable verified Host.
+7. Real iPhone + Android + laptop/projector QR/device testing.
+8. Screen-reader, keyboard, text-scale and contrast validation on real supported devices/browsers.
+9. Weak-Wi-Fi/reconnect/Host-recovery and Quick Draw real-network tests.
+10. People Bingo 5×5 phone readability and real >25-player fairness sessions.
 11. Closed beta validating actual 3 / 5 / 8 / 10-minute pacing.
 12. Production screenshots, store age/target-audience questionnaires, final smoke test and rollback readiness.
 
