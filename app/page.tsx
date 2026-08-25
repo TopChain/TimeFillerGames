@@ -68,7 +68,7 @@ export default function HomePage() {
 
       <section className="section">
         <div className="section-head"><div><div className="kicker host-kicker">{copy.gameLibrary}</div><h2>{copy.gamesFit(minutes)}</h2></div><span className="muted">{copy.releaseNote}</span></div>
-        <div className="game-grid">{compatible.map((game) => <article className={`card ${game.accent}`} key={game.id}><span className="pill release">Release 1</span><h3>{game.name}</h3><div className="meta"><span className="pill">{copy.minPlayers} {game.hardMin}</span><span className="pill">{game.hardMax ?? copy.noGameMaximum}</span><span className="pill">{copy.best} {game.recommended}</span><span className="pill">{copy.screen}: {game.sharedScreen}</span></div></article>)}</div>
+        <div className="game-grid">{compatible.map((game) => <article className={`card ${game.accent}`} key={game.id}><span className="pill release">Release 1</span><h3>{game.name}</h3><div className="meta"><span className="pill">{copy.minPlayers} {game.hardMin}</span><span className="pill">{game.hardMax ?? copy.noGameMaximum}</span>{game.recommended ? <span className="pill">{copy.best} {game.recommended}</span> : null}<span className="pill">{copy.screen}: {game.sharedScreen}</span></div></article>)}</div>
       </section>
 
       <section className="role-preview-grid">

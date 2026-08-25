@@ -19,19 +19,19 @@ export default function PrivacyPolicyPage() {
     <h2>Advertising and tracking</h2>
     <p>Release 1 does not include an advertising SDK or cross-app tracking SDK, and TimeFillerGames does not sell personal data for advertising.</p>
     <h2>Service providers</h2>
-    <p>TimeFillerGames uses infrastructure providers for authentication, database/realtime operation, hosting, security logging, and related service delivery. These providers process information on behalf of the service according to their applicable agreements and configurations.</p>
+    <p>TimeFillerGames uses Supabase for authentication, database and realtime infrastructure, and Vercel for HTTPS application hosting and server execution. Provider security and operational systems may process the information needed to deliver, secure, troubleshoot, and maintain the service under their applicable agreements and configurations.</p>
     <h2>Retention</h2>
-    <p>Game rooms have an expiry time and are intended to be temporary. Operational, authentication-security, infrastructure, and moderation records may be retained longer when needed for security, abuse prevention, dispute handling, legal obligations, or reliable service operation. Final production retention periods and hosting-provider details will be stated here before launch.</p>
+    <p>Release 1 game rooms are temporary. The application default room lifetime is 120 minutes, with server configuration limited to 15–1440 minutes. Expired rooms are eligible for the daily retention cleanup, and deleting a room cascades through its associated gameplay and room data. Server rate-limit buckets older than 24 hours are also removed by the cleanup process. Authentication, infrastructure-security, and provider operational records may follow the applicable provider retention schedule or be retained when needed for security, abuse prevention, dispute handling, or legal obligations.</p>
     <h2>Account and data removal</h2>
     <p>Authenticated Hosts and temporary Players can use the in-app Privacy control to permanently remove their TimeFillerGames authentication identity and associated personal data. Hosts may first verify their account from the public <a href="/privacy">account and data management page</a>. Rooms owned by a removed Host are closed; participation in rooms owned by another person is anonymized before the authentication identity is removed. Infrastructure/security logs that must be retained for security, legal, or provider-operational reasons may follow the applicable provider retention schedule.</p>
     <h2>Security</h2>
-    <p>Production traffic is intended to use encrypted HTTPS/TLS connections. Multiplayer game authority and high-impact actions are validated by server-side services rather than trusting browser or mobile client state alone.</p>
+    <p>The production service is hosted over HTTPS/TLS. Multiplayer game authority and high-impact actions are validated by server-side services rather than trusting browser or mobile client state alone.</p>
     <h2>Children and classroom use</h2>
-    <p>Release 1 supports classroom use but is not intended to be marketed as a child-directed service until the dedicated children/privacy review is complete. The final launch policy and age/target-audience disclosures will be published before store submission.</p>
+    <p>Release 1 supports classroom use but is not marketed as a child-directed or Kids service. The dedicated Kids context and uploaded participant photos are disabled. Final store target-audience and age-rating answers will match the submitted Release 1 behavior.</p>
     <h2>Your choices</h2>
-    <p>You can leave a room, use built-in identity options, request account/data removal, and contact TimeFillerGames support when the final public support channel is published.</p>
+    <p>You can leave a room, use built-in identity options, and request permanent account/data removal. A public support contact will be added before store submission.</p>
     <h2>Changes</h2>
-    <p>This pre-release policy may change before launch as legal review, deployment configuration, and store disclosures are finalized.</p>
+    <p>This pre-release policy may change before launch as final legal review and store disclosures are completed.</p>
     <p><a className="btn ghost" href="/">Return to TimeFillerGames</a></p>
   </article></main>;
 }

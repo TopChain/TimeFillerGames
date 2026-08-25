@@ -1,359 +1,324 @@
-# TimeFillerGames — Publishing Handoff
+# TimeFillerGames — Release 1 Publishing Handoff
 
-This runbook begins when the Release 1 code candidate is green in GitHub Actions and ends at App Store / Google Play submission. It deliberately excludes the optional paid Supabase branch and does not require a custom paid domain for version 1.0.0.
+This runbook begins from the current Release 1 code candidate and the live Vercel production origin. It ends only when the exact signed/distributed binaries have passed real-device QA and the Apple App Store / Google Play submission records are complete.
 
-## 0. Non-negotiable release identity
+A paid Supabase staging branch is intentionally **not required**. A custom paid domain is optional for Release 1.
+
+## 1. Fixed release identity
 
 - Product: **TimeFillerGames**
 - Bundle / application ID: `com.timefillergames.app`
 - Release: `1.0.0` / build + versionCode `1`
+- Stable web/API origin: `https://time-filler-games.vercel.app`
 - Public Release 1 games: Bingo (Standard + People 5×5), Majority Match, Quick Draw & Guess
 - Release 1.1 Word/Math remain unavailable on the public shelf.
 - Dedicated Kids context, custom participant photos, and public Quick Draw guess streaming remain unavailable in Release 1.
 
-## 1. Git / CI release baseline
+## 2. Current code/build baseline
 
-Before deployment, PR #1 must remain Draft and all automatic checks on the exact head must pass:
+The Release 1 foundation has already been merged to `main`. Final release corrections use a dedicated finalization branch/PR and must pass the applicable GitHub Actions checks before merge.
 
-- production dependency audit (`npm audit --omit=dev --audit-level=high`)
+Automated release coverage includes:
+
+- production dependency vulnerability audit
 - TypeScript
-- Vitest rules/content/localization/policy/PWA/fairness/canvas tests
-- release/staging script syntax checks
+- game/content/localization/policy/PWA tests
 - Next.js production build
-- Mobile Vite/Capacitor build
-- Android native configuration + debug APK + Play-format release AAB
-- merged Android permission audit: camera/internet required; location, microphone, broad media/storage, contacts/calendar/phone/SMS/sensors rejected
-- iOS native configuration + unsigned Xcode simulator build
-- app + Capacitor SDK privacy manifests
-- app-level privacy manifest bundled at the `.app` root
-- generated App Store icons exactly 1024×1024 and opaque (`hasAlpha: no`)
-- iOS sensitive-permission audit: camera allowed; location/microphone/photos/contacts/calendar/Bluetooth/health/motion/speech declarations rejected for Release 1
+- bundled Vite/Capacitor mobile build
+- Android configuration, permission audit, debug APK and Play-format AAB compilation
+- iOS configuration, sensitive-permission audit, privacy manifests, App Store icon checks and unsigned Xcode simulator compilation
+- clean Supabase migration replay plus Auth/game/recovery/retention integration scenarios
 
-Do not merge to `main` merely to obtain a preview. Use the release-candidate branch for staging until external QA passes.
+Do not submit a store build from an arbitrary local commit. Record the exact Git SHA used for the final signed artifacts.
 
-## 2. Create the HTTPS hosting project
+## 3. Production HTTPS deployment — live
 
-The connected Vercel deployment connector is currently unusable because its exposed tool accepts no deployment fields while its backend requires `target`, `name`, and `files`. Therefore the account owner must perform the Git import in the Vercel dashboard.
+Vercel project: `time-filler-games`.
 
-1. In Vercel, choose **Add New → Project**.
-2. Import GitHub repository `TopChain/TimeFillerGames`.
-3. Framework should resolve as **Next.js**.
-4. Use the repository root as Root Directory.
-5. Use the Vercel-provided HTTPS project hostname for first release unless a custom domain is deliberately purchased later.
-6. Do not expose Supabase server credentials as `NEXT_PUBLIC_*` variables.
+Stable origin: `https://time-filler-games.vercel.app`.
 
-A custom domain is optional. The first store release only requires stable, publicly reachable HTTPS URLs for the app, privacy policy, account management, support, and API.
+Verified production surfaces:
 
-## 3. Vercel production environment
+- `/` responds successfully
+- `/api/health` reports public/server Supabase configuration and database reachability
+- `/privacy-policy`
+- `/terms`
+- `/privacy`
+- `/support`
+- `/accessibility`
+- unauthenticated `/api/cron/retention` is rejected
+- HSTS, no-sniff, frame denial, strict referrer policy and restrictive permissions policy are present
 
-Set these Project Environment Variables for Production (and Preview only when deliberate):
+The Vercel project is connected to `main`. After a finalization merge, wait for the new production deployment to become READY and repeat the smoke checks before using the build for store review.
+
+## 4. Supabase production configuration
+
+Project: TimeFillerGames under **TopChain AI Lab**.
+
+Before store review:
+
+1. Confirm Supabase Authentication Site URL is `https://time-filler-games.vercel.app`.
+2. Confirm the exact web callback used by Host magic-link sign-in is allowed.
+3. Confirm `timefillergames://auth/callback` is allowed for the native app.
+4. Keep anonymous authentication enabled because Release 1 Players intentionally receive invisible authenticated guest identities.
+5. Move the production project to an always-on production plan before relying on it for store review/public launch; do not create an optional paid staging branch.
+6. On the production plan, enable leaked-password protection before creating the reusable password-based store-review Host identity.
+7. Keep the server secret/service-role credential private; never expose it through a `NEXT_PUBLIC_*` or `VITE_*` variable.
+
+Current advisor interpretation:
+
+- anonymous-access WARN entries are expected for policies that intentionally support authenticated anonymous Players;
+- server-only tables with RLS and no browser policy are expected;
+- performance advisor findings are informational unused-index notices before production traffic;
+- leaked-password protection is a production configuration gate for the reusable reviewer password account.
+
+## 5. Release environment preflight
+
+Server production variables include the production Supabase public/server credentials, canonical app URL, strong Cron secret and room/recovery operational values.
+
+Native/mobile release variables must include:
 
 ```text
-NEXT_PUBLIC_SUPABASE_URL=<TimeFillerGames Supabase project HTTPS URL>
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
-SUPABASE_SECRET_KEY=<current Supabase server secret>
-NEXT_PUBLIC_APP_URL=https://<stable-vercel-host>
-NEXT_PUBLIC_API_BASE_URL=
-NEXT_PUBLIC_AUTH_REDIRECT_URL=https://<stable-vercel-host>
-ROOM_CODE_LENGTH=6
-ROOM_TTL_MINUTES=120
-HEARTBEAT_STALE_SECONDS=35
-RECONNECT_GRACE_SECONDS=60
-HOST_RECOVERY_GRACE_SECONDS=45
-CRON_SECRET=<random >=16-character secret; use a stronger generated value>
+VITE_API_BASE_URL=https://time-filler-games.vercel.app
+VITE_APP_URL=https://time-filler-games.vercel.app
+VITE_SUPABASE_URL=<production Supabase URL>
+VITE_SUPABASE_PUBLISHABLE_KEY=<production publishable key>
+VITE_AUTH_REDIRECT_URL=timefillergames://auth/callback
+VITE_REVIEW_ACCESS_ENABLED=true
 ```
 
-Legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` are supported only for migration compatibility; prefer the current publishable/server-secret variables.
-
-Redeploy after any environment-variable change. Confirm Vercel detects the daily Cron entry from `vercel.json`.
-
-## 4. Supabase Auth URL configuration
-
-In Supabase Dashboard → Authentication → URL Configuration:
-
-- **Site URL:** `https://<stable-vercel-host>`
-- Add the exact web redirect URL used by the app.
-- Add native redirect URL: `timefillergames://auth/callback`
-- Keep localhost redirects only for development, not as the production Site URL.
-- If Vercel Preview authentication is intentionally tested, add only the required preview pattern; production should use exact redirect URLs.
-
-Send one Host magic link on web and one through an installed native build and verify both return to the expected Host flow.
-
-## 5. Production environment preflight
-
-With the real production variables available locally or in a secure release runner:
+Run with real release variables in a secure environment:
 
 ```bash
 npm ci
 npm run release:preflight
 ```
 
-PASS means:
+Never commit the production server secret, reviewer password, or Cron secret.
 
-- no placeholder/local HTTP production origins
-- required server and mobile public configuration exists
-- TypeScript/tests/Next build pass
-- mobile release environment validation passes
-- mobile production bundle builds
+## 6. Production smoke and deployed API validation
 
-Never commit the real server secret or `CRON_SECRET`.
-
-## 6. HTTPS deployment smoke test
-
-Configure `STAGING_BASE_URL` to the deployed HTTPS origin and run:
+After the final production deployment:
 
 ```bash
-npm run staging:smoke
+STAGING_BASE_URL=https://time-filler-games.vercel.app npm run staging:smoke
 ```
 
-PASS requires:
-
-- public home page responds
-- `/api/health` responds successfully
-- `/privacy-policy`, `/terms`, `/privacy`, `/support`, `/accessibility` respond
-- unauthenticated retention cleanup request is rejected
-
-Manually verify browser security headers and that all Host/Player API traffic stays HTTPS.
-
-## 7. Authenticated load + API E2E
-
-Create one disposable verified Host login against the deployed product, obtain its temporary access token through a secure local testing session, and set:
-
-```text
-STAGING_BASE_URL=https://<stable-vercel-host>
-STAGING_SUPABASE_URL=<Supabase URL>
-STAGING_SUPABASE_PUBLISHABLE_KEY=<publishable key>
-LOAD_TEST_HOST_TOKEN=<temporary disposable Host access token>
-E2E_HOST_TOKEN=<same or another disposable Host token>
-LOAD_TEST_PLAYERS=30
-```
-
-Then run:
+Then use a disposable verified Host access token in a secure test environment to run:
 
 ```bash
 npm run staging:load
 npm run staging:e2e
 ```
 
-`staging:load` creates its own temporary room and anonymous Player identities, performs concurrent joins, heartbeats and authenticated snapshots, prints p50/p95/max latency, and closes the room.
+Start load validation at 30 Players. Increase only when the previous level is clean. Load-test results are engineering evidence, not permission to advertise an arbitrary public capacity number.
 
-`staging:e2e` creates disposable rooms/Players and runs deployed API scenarios for Standard Bingo, Majority Match, and Quick Draw: card selection/concurrent draw integrity, Majority scoring/idempotent reveal, accepted Quick Draw guess/scoring, reveal, and incremental-stroke cursor behavior. It closes every temporary room and signs out guests.
+The deployed E2E harness should exercise disposable rooms and identities and verify Standard Bingo concurrency, Majority Match scoring/reveal behavior, Quick Draw guess/scoring/round integrity, reconnect-sensitive paths and cleanup.
 
-Start load testing at 30 Players. If clean, repeat at 50 and then 100 only as engineering validation; do not advertise a capacity number until the observed device/network behavior supports it.
+## 7. Account-erasure validation
 
-## 8. End-to-end Release 1 QA matrix
+The JWT-protected `erase-account` Edge Function is part of the production backend. Completion must only be reported after the Auth identity is actually deleted.
 
-Use temporary rooms on the deployed environment. Minimum real-device matrix:
+Before submission, validate both identity classes against the deployed and distributed products:
 
-- one current iPhone
-- one current Android phone
-- one laptop/desktop Host
-- one projector/large-screen scenario when available
-- multiple simultaneous browser tabs/devices for reconnect/retry behavior
+1. Disposable anonymous Player → Privacy → Delete account & data.
+2. Confirm the Player Auth identity can no longer authenticate.
+3. Disposable email Host → create a temporary room → Delete account & data.
+4. Confirm the Host Auth identity can no longer authenticate.
+5. Confirm Host-owned rooms are removed.
+6. Confirm records that must remain in another Host's room are anonymized rather than retaining the deleted identity.
+7. Confirm the public `/privacy` verification/deletion path works.
+8. Confirm the completed privacy-request record reflects the correct app/web source.
 
-For every test, record PASS/FAIL + device/OS/browser/app version.
+Never use the production owner account for this test.
 
-### Whole-product path
+## 8. Real-device Release 1 QA
 
-Host sign-in → choose 3/5/8/10 min → context → game → configuration → create room → QR/direct/PIN joins → six-language Player identity setup → Ready → game → pause/resume → disconnect/reconnect → results → Replay/Change Game → end room.
+Automated CI cannot replace this gate. Record device/OS/browser/app build and PASS/FAIL for each test.
 
-### Standard Bingo
+Minimum matrix:
 
-- 3 candidate cards
-- timer auto-assignment/lock
-- repeated Host draw clicks do not create divergent draws
+- current iPhone on the TestFlight build
+- current Android phone on the Play testing-track build
+- laptop/desktop Host browser
+- projector/large-screen Host scenario where practical
+- multiple devices/tabs for reconnect and retry behavior
+
+Whole-product path:
+
+Host sign-in → choose 3/5/8/10 min → context → game → configuration → create room → QR/direct/PIN joins → Player language/avatar/nickname → Ready → play → pause/resume → disconnect/reconnect → results → Replay/Change Game → end room.
+
+Standard Bingo:
+
+- three candidates and timed auto-lock
+- repeated draw requests cannot diverge state
 - automatic marking/winner detection
 - same-draw shared placement
 - pause/reconnect
 
-### People Bingo
+People Bingo:
 
-- exactly 25 active identities required
-- 5×5 readability on smallest supported phone
-- 25, 30 and preferably 40+ participant sessions
-- no duplicate identity in a card
-- drawn identities mark all matching cells
-- observe >25 subset distribution across repeated games
+- exactly 25 active identities required for 5×5
+- smallest-phone readability
+- real sessions at 25 and above 25 participants
+- no duplicate identity inside one card
+- drawn identities mark every matching cell
+- observe subset distribution when more than 25 participants are eligible
 
-### Majority Match
+Majority Match:
 
-- private answers
-- tied majority scoring
-- late join waits until safe question boundary
-- repeated Reveal/Next actions remain idempotent
+- private answer submission
+- tied-majority scoring
+- late join activates only at safe question boundary
+- repeated Reveal/Next behavior is safe
 - pause/resume deadline integrity
 
-### Quick Draw
+Quick Draw:
 
-- finger + stylus/mouse where available
-- clear while strokes are still queued
-- incremental polling keeps canvas synchronized
-- reconnect reconstructs only the visible canvas from the most recent clear forward
-- guess flood/rate limits behave normally
-- accepted guess score and artist score agree with result
-- repeated Next round does not create a duplicate round
+- finger and stylus/mouse where available
+- clear while strokes are queued
+- canvas reconstruction after reconnect
+- accepted guess and artist scoring
+- rate-limit behavior
+- repeated Next does not duplicate rounds
 - weak Wi-Fi / temporary offline / reconnect
 
-### Host recovery
+Host recovery:
 
-- designate one co-host
-- secure co-host identity
-- stop Host heartbeat beyond grace period
-- only designated verified co-host can claim
+- designate the co-host
+- interrupt Host heartbeat beyond the grace period
+- only the designated verified co-host can claim
 - live game pauses during transfer
 - recovered Host can inspect state and resume/end
 
-## 9. Account erasure validation
+## 9. Accessibility release audit
 
-The live JWT-protected `erase-account` Edge Function is version 4. It supports current Supabase publishable/secret credentials with legacy fallbacks, records whether a request came from the app/native flow or the external web `/privacy` flow, and marks the request completed only after Auth deletion succeeds.
+Before screenshots and submission, test the final distributed builds for:
 
-Test both identity classes against the deployed/native product:
-
-1. Disposable anonymous Player → Privacy → Delete account & data → confirm.
-2. Disposable email Host → create temporary room → Privacy → Delete account & data → confirm.
-3. Verify the Auth identity can no longer authenticate.
-4. Verify Host-owned rooms are removed.
-5. Verify participant records retained only for another Host’s room are anonymized.
-6. Verify request status reaches completed only after Auth deletion.
-7. Verify public `/privacy` account-management path can send a verification link and complete deletion from the web.
-8. Verify the audit source is `app` or `web` as appropriate.
-
-Do not use a real production owner account for this test.
-
-## 10. Accessibility release audit
-
-Real-device/browser checks:
-
-- keyboard-only full Host and Player web flows
-- visible focus at every interactive control
-- VoiceOver on iPhone and TalkBack on Android for join, game controls, result and privacy deletion
-- 200% text/browser scaling where applicable
-- device text-size increase on iOS/Android
+- keyboard-only Host/Player web flow
+- visible focus
+- VoiceOver on iPhone
+- TalkBack on Android
+- enlarged browser/device text
 - reduced motion
-- dark/light/system
-- contrast/forced-colors desktop check
-- no state communicated by color alone
+- Light/Dark/System appearance
+- contrast and forced-colors desktop behavior
+- no important state communicated by color alone
+- no clipped essential controls at supported text/device sizes
 
-Fix release-blocking navigation, label, focus or clipping defects before screenshots.
+Any material navigation, labeling, focus, reading-order or clipping defect is a release blocker.
 
-## 11. Closed beta / pacing
+## 10. Closed beta and pacing
 
-Run real groups through 3, 5, 8 and 10 minute sessions. Capture:
+Run real groups through 3, 5, 8 and 10 minute sessions. Capture join time, Ready delays, actual game duration, reconnect incidence, confusing steps and device-specific failures.
 
-- time from opening app to first game action
-- join/Ready delays
-- game completion vs selected duration
-- reconnect incidence
-- confusing Host/Player steps
-- device-specific issues
+People Bingo and Quick Draw require real-group/network evidence before public fairness/capacity/synchronization claims are made.
 
-Do not alter approved core rules solely to make a single beta session fit; use repeated evidence.
+## 11. Store reviewer access
 
-## 12. Apple Developer / TestFlight
+The production UI contains a dedicated **Store review access** path that uses reusable email/password credentials to enter the real Host flow.
 
-Account-owner action is required for membership, contracts, certificates, signing and App Store Connect.
+Before submission:
 
-Technical baseline already encoded/validated:
+1. Use a dedicated non-owner reviewer email identity.
+2. Create a strong reusable password only after production leaked-password protection is enabled.
+3. Verify the account is a non-anonymous Host identity.
+4. Test the credentials on the exact TestFlight and Play testing-track builds.
+5. Put the credentials only in the private Apple/Google review notes—not in source, screenshots, public support pages, or store descriptions.
+6. Keep the backend online throughout review.
 
-- `com.timefillergames.app`
-- 1.0.0 (1)
-- iOS 26 SDK / Xcode 26 generation requirement
-- app-level `PrivacyInfo.xcprivacy`
-- Capacitor SDK privacy manifest presence check
-- camera-purpose description
-- no unnecessary sensitive permission usage descriptions
-- `timefillergames://auth/callback`
-- opaque 1024×1024 App Store icon output
+Normal Hosts may continue to use the product's verified email magic-link flow; the password path exists only to make review deterministic.
 
-After Apple Developer enrollment:
+## 12. Apple App Store / TestFlight
 
-1. Register App ID `com.timefillergames.app` if not automatically created through Xcode/App Store Connect.
-2. Create the App Store Connect app record.
-3. Configure signing team/certificates/profile in Xcode.
-4. Archive the Release build with the iOS 26 SDK or later.
-5. Validate archive.
-6. Upload to App Store Connect.
-7. Add internal TestFlight testers first.
-8. Complete external beta review if external TestFlight testers are used.
-9. Run the full device/account-deletion/QR checks on the TestFlight binary.
+Current Apple upload baseline: Xcode 26 or later using the iOS 26 SDK or later.
 
-## 13. App Store Connect content
+Account-owner actions:
 
-Use the versioned drafts rather than re-writing metadata from scratch:
+1. Maintain an active Apple Developer membership.
+2. Register/confirm App ID `com.timefillergames.app`.
+3. Create the App Store Connect app record.
+4. Configure the signing team/certificates/profile.
+5. Archive the exact Release build with the required Xcode/iOS SDK generation.
+6. Validate and upload the archive.
+7. Test the uploaded binary through internal TestFlight first.
+8. Run the full real-device/account-deletion/QR/reviewer-access checks on that TestFlight binary.
+9. Add final screenshots and metadata.
+10. Complete App Privacy and the current age-rating questionnaire accurately.
+11. Add the working Support and Privacy URLs.
+12. Supply reviewer credentials/notes and submit only after all release gates are green.
 
-- `docs/STORE_SUBMISSION_DRAFT.md`
-- `docs/STORE_PRIVACY_DATA_MAP.md`
-- `docs/AGE_RATING_DRAFT.md`
+Apple expects login-gated apps to provide working review access, working backend services and final non-placeholder URLs/content.
 
-Submission URLs:
+## 13. Google Play
 
-- Privacy Policy: `https://<stable-vercel-host>/privacy-policy`
-- optional Privacy Choices: `https://<stable-vercel-host>/privacy`
-- Support: `https://<stable-vercel-host>/support`
-- Accessibility: `https://<stable-vercel-host>/accessibility`
+Release 1 targets Android API 36, meeting the August 31, 2026 phone/tablet submission requirement.
 
-Current Apple age-rating working answer: **Frequent Contests** because normal gameplay competes for rankings/podiums. Under current iOS 26-era age-rating definitions this is expected to generate **13+**. This is not a Made for Kids designation. Complete the live questionnaire accurately and accept Apple's generated regional ratings unless a legal/EULA minimum age requires a higher override.
+Account-owner actions:
 
-Apple requires a Privacy Policy URL and App Privacy declarations. Because TimeFillerGames creates permanent Host and automatic guest/Player identities, keep the in-app deletion control available to both identity types.
+1. Maintain/verify a Google Play developer account.
+2. Create the app record for `com.timefillergames.app`.
+3. Enable Play App Signing.
+4. Upload a signed AAB derived from the validated release configuration.
+5. Start Internal Testing, then the applicable Closed Testing track.
+6. Test the Play-distributed binary, not only a sideloaded build.
+7. Complete Data Safety from the actual binary/provider behavior.
+8. Enter `https://time-filler-games.vercel.app/privacy-policy` as the Privacy Policy URL.
+9. Enter `https://time-filler-games.vercel.app/privacy` as the external account-deletion URL.
+10. Complete content rating and target-audience forms accurately; do not select child target groups merely for discoverability.
+11. Supply reviewer credentials/notes where required.
 
-## 14. Google Play Console
+If the developer account is a personal account created after November 13, 2023, Google currently requires a closed test with at least 12 opted-in testers continuously for 14 days before applying for production access.
 
-Account-owner action is required for registration, identity verification, Play App Signing and release tracks.
+## 14. Support and legal gate
 
-1. Create app with package `com.timefillergames.app`.
-2. Complete store listing using `docs/STORE_SUBMISSION_DRAFT.md`.
-3. Enter privacy policy: `https://<stable-vercel-host>/privacy-policy`.
-4. Enter external account deletion URL: `https://<stable-vercel-host>/privacy`.
-5. Complete Data Safety from `docs/STORE_PRIVACY_DATA_MAP.md` and the actual release binary/provider/SDK behavior.
-6. Complete IARC content rating and target audience using `docs/AGE_RATING_DRAFT.md` as the engineering basis.
-7. Do not select child target-age groups merely to broaden discoverability; any selected child audience triggers Families policy obligations.
-8. Enable Play App Signing.
-9. Produce/upload the signed Play release AAB based on the already-green unsigned `bundleRelease` pipeline.
-10. Start Internal Testing, then Closed Testing as appropriate.
-11. If the developer account is a **personal account created after November 13, 2023**, Google requires at least 12 opted-in closed testers continuously for 14 days before applying for production access. Do not assume this condition until the account type/creation date is known.
-12. Test the Play-distributed build, not only an Android Studio sideload.
+Before either store submission:
 
-Android Release 1 already targets API 36, satisfying the August 31, 2026 new-app/update target requirement.
+- add a real, monitored public support contact to `/support` and the store records;
+- obtain account-holder/legal acceptance of the Privacy Policy and Terms;
+- remove all visible pre-release/draft wording from the public legal pages only after that approval;
+- set an effective date and any required business/jurisdiction/consumer-rights terms based on actual legal/account-holder decisions, not engineering guesses.
 
 ## 15. Screenshots
 
-Capture screenshots only after the staged/native release candidate passes QA so screenshots match the submitted binary. Apple screenshots must not contain alpha/transparency.
+Capture screenshots from the final distributed candidate after QA. Do not use engineering mocks as final store screenshots.
 
-Recommended storyboard:
+Storyboard:
 
-1. Host time-first setup
-2. QR/PIN join lobby
+1. Home / time-first setup
+2. QR/PIN lobby
 3. Standard Bingo
 4. People Bingo
 5. Majority Match
 6. Quick Draw
 7. results/podium
-8. multilingual UI / group connection story where useful
+8. multilingual identity/join experience where useful
 
-Do not show email addresses, access tokens, real room participants, or test/admin diagnostics.
+Do not expose real email addresses, tokens, room participants or admin diagnostics.
 
-## 16. Final release gate
+## 16. Final publication gate
 
-Before changing PR #1 from Draft / merging / submitting production builds, all must be true:
+TimeFillerGames is **ready to publish** only when all are true:
 
-- exact release commit: web/server, mobile, Android, iOS CI green
-- `npm run release:preflight` green with real production env
-- HTTPS smoke green
-- `npm run staging:e2e` green
-- staging load green at the chosen launch test level
-- account deletion verified end to end on app and external web path
-- real-device QR/game/reconnect matrix green
-- People Bingo phone/readability and >25 session evidence acceptable
+- exact release commit CI/integration/native builds green
+- final production Vercel deployment READY
+- release preflight and HTTPS smoke green
+- deployed API E2E and launch-level load test green
+- Supabase production reliability/security configuration complete
+- account deletion verified end to end
+- real-device QR/game/reconnect/Host-recovery matrix green
+- People Bingo >25/readability evidence acceptable
 - Quick Draw weak-network evidence acceptable
-- Android/iOS permission audits green on the exact release build
 - accessibility audit complete
 - closed beta pacing acceptable
-- real support identity present
-- Privacy Policy/Terms accepted by account owner/legal reviewer
-- TestFlight release build tested
-- Google testing-track build tested
-- screenshots from final build
+- real support contact live
+- Privacy Policy/Terms approved and no longer drafts
+- dedicated reviewer credentials tested
+- TestFlight binary tested
+- Google testing-track binary tested
+- final screenshots captured
 - App Privacy / Data Safety / age-rating / target-audience forms completed accurately
+- signing/contracts/account verification complete
 - rollback path known
 
-Only after every item above is satisfied should the project be described as **ready to publish**.
+Only then should the project be described as **ready to publish to Apple and Google**.
